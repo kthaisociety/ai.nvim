@@ -1,0 +1,2 @@
+stylua --check .
+selene .
