@@ -2,7 +2,7 @@ local M = {}
 
 -- closure of a running process and RPC ops
 ---@param cmd string[]
----@param on_msg fn(method: string, params: table?): table?
+---@param on_msg fun(method: string, params: table?): table?
 ---@param on_exit? fun(code: integer, signal: integer) called after the process ends
 function M.init(cmd, on_msg, on_exit)
 	local proc, id, pending, buf = nil, 0, {}, ""

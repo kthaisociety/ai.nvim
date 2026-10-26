@@ -3,6 +3,7 @@ local utils = require("ai.utils")
 
 local M = {}
 
+---@type table<integer, ai.Agent>
 local agents = {}
 
 -- Uses the selected text as a prompt and replaces it with the agent's response
@@ -20,17 +21,38 @@ vim.api.nvim_create_user_command("AgentReplace", function()
 
   local namespace = vim.api.nvim_create_namespace("kthais")
   local buffer = vim.api.nvim_get_current_buf()
+  local mode = vim.api.nvim_get_mode().mode -- visual char (v), visual line (V), block (CTRL-V)
 
   -- Selection can span to the position at the end of a line where no characters
-  -- are placed (end_col index out of range). Need to clamp to line's width.
-  local end_line = vim.api.nvim_buf_get_lines(buffer, e[2] - 1, e[2], false)[1]
-  local end_col = math.min(e[3], #end_line)
+  -- are placed (end_col index out of range).
+  local start_col, end_col, end_row
+  local start_row = s[2] - 1
+  if mode == "v" then
+    start_col = s[3] - 1
+    -- Need to clamp to line's width.
+    local end_line = vim.api.nvim_buf_get_lines(buffer, e[2] - 1, e[2], false)[1]
+    end_col = math.min(e[3], #end_line)
+    end_row = e[2] - 1
+  else
+    -- Ignore if in line or block select
+    start_col = 0
+    end_col = 0
+    end_row = e[2]
+  end
 
-  local mark_id = vim.api.nvim_buf_set_extmark(buffer, namespace, s[2] - 1, s[3] - 1,
-    { end_row = e[2] - 1, end_col = end_col, invalidate = true }
+  local mark_id = vim.api.nvim_buf_set_extmark(buffer, namespace, start_row, start_col,
+    { end_row = end_row, end_col = end_col, invalidate = true }
   )
 
-  local mode = vim.api.nvim_get_mode().mode -- visual char (v), visual line (V), block (CTRL-V)
+  ---@type ai.Selection
+  local selection = {
+    buffer = buffer,
+    mode = mode,
+    mark_id = mark_id,
+    left = math.min(s[3], e[3]),
+    right = math.max(s[3], e[3]),
+  }
+
   local selected_text = table.concat(vim.fn.getregion(s, e, { type = mode }), "\n")
   local agent_output = M._dummy_replace_agent(selected_text)
 
@@ -47,30 +69,19 @@ vim.api.nvim_create_user_command("AgentReplace", function()
 
   -- Agent reponse delay --
 
-  if not vim.api.nvim_buf_is_valid(buffer) then
-    print("AgentReplace cancelled due to invalid buffer")
-    return
-  end
-
-  local mark = vim.api.nvim_buf_get_extmark_by_id(buffer, namespace, mark_id, { details = true })
-
-  if mark[3].invalid then -- Do we want to cancel the AI call if the prompt was removed?
-    print("AgentReplace cancelled due to removed prompt")
-    return
-  end
-
-  utils.set_lines(lines, buffer, mark, mode)
+  utils.set_lines(lines, selection)
 
   vim.api.nvim_buf_del_extmark(buffer, namespace, mark_id)
 end, {})
 
 
+---@param id integer Agent id (index in agents array)
+---@return ai.Agent? agent can be nil if no agent has been created in id's slot
 function M.get_agent(id)
   return agents[id]
 end
 
 function M._dummy_replace_agent(text)
-  vim.defer_fn(function() end, 3000)
   return text:upper()
 end
 
