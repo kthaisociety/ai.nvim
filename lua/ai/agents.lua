@@ -15,17 +15,21 @@ local agents = {}
 vim.api.nvim_create_user_command("AgentReplace", function()
   local selection = utils.create_selection()
   M._dummy_replace_agent(selection.text, function(agent_output)
-    local lines = vim.split(agent_output, "\n")
-    utils.set_lines(lines, selection)
+    utils.replace_text(agent_output, selection)
     vim.api.nvim_buf_del_extmark(selection.buffer, selection.namespace, selection.mark_id)
   end)
-
-  -- M.get_agent(1).prompt(selected_text, {
-  --   on_text = function(text)
-  --     local lines = vim.split(text, "\n")
-  --     print(text, #lines)
+  -- TODO: Make undo somehow cancel the request?
+  -- TODO: Should we let the AI see more than the selected text? Probably.
+  -- More context the better?
+  -- But only let it overwrite the selection
+  -- Should this be done by rejecting write tool calls but allowing read tool calls?
+  -- Should utils.replace_text be a tool call or should the AI's response be the replacing text?
+  -- M.get_agent(1).prompt(selection.text, {
+  --   on_text = function(chunk)
+  --     utils.replace_text(chunk, selection)
   --   end,
   --   done = function(stop_reason, prompt_err)
+  --     vim.api.nvim_buf_del_extmark(selection.buffer, selection.namespace, selection.mark_id)
   --     print(prompt_err and prompt_err.message or stop_reason)
   --   end,
   -- })

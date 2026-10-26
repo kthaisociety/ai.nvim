@@ -52,15 +52,16 @@ function M.create_selection()
   return selection
 end
 
----Replace the marked region with an agent's output.
----@param lines string[] Agent output, split on newlines
+---Replace the selected region with the accumulated agent output
+---and update the extmark's extent.
+---@param chunk string Agent output chunk
 ---@param selection ai.Selection
 ---@return boolean ok True if the replacement was applied
-function M.set_lines(lines, selection)
+function M.replace_text(chunk, selection)
   local buffer = selection.buffer
 
   if not vim.api.nvim_buf_is_valid(buffer) then
-    vim.notify("KTHAIS.set_lines: Cancelled due to invalid buffer", vim.log.levels.WARN)
+    vim.notify("KTHAIS.replace_text: Cancelled due to invalid buffer", vim.log.levels.WARN)
     return false
   end
 
@@ -68,9 +69,11 @@ function M.set_lines(lines, selection)
 
   if mark[3].invalid then
     -- Do we want to cancel the AI call if the prompt was removed?
-    vim.notify("KTHAIS.set_lines: Selection was entirely removed, cancelling", vim.log.levels.WARN)
+    vim.notify("KTHAIS.replace_text: Selection was entirely removed, cancelling", vim.log.levels.WARN)
     return false
   end
+
+  local lines = vim.split(chunk, "\n")
 
   if selection.mode == "v" then
     vim.api.nvim_buf_set_text(buffer, mark[1], mark[2], mark[3].end_row, mark[3].end_col, lines)
@@ -78,7 +81,7 @@ function M.set_lines(lines, selection)
     vim.api.nvim_buf_set_lines(buffer, mark[1], mark[3].end_row, false, lines)
   else -- visual block
     -- TODO: Should we support VISUAL BLOCK for AgentReplace?
-    vim.notify("KTHAIS.set_lines: VISUAL BLOCK not supported", vim.log.levels.WARN)
+    vim.notify("KTHAIS.replace_text: VISUAL BLOCK not supported", vim.log.levels.WARN)
     return false
   end
   return true
