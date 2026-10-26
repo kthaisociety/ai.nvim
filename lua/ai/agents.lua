@@ -13,48 +13,12 @@ local agents = {}
 -- This is in contrast to getpos, getregionpos, getregion which is 1-based start and end inclusive.
 -- getpos can however return columns past valid column indices (see clamping below).
 vim.api.nvim_create_user_command("AgentReplace", function()
-  local s, e = vim.fn.getpos("v"), vim.fn.getpos(".")
-  if s[2] > e[2] or (s[2] == e[2] and s[3] > e[3]) then
-    -- Switch order if start is after end
-    s, e = e, s
-  end
-
-  local namespace = vim.api.nvim_create_namespace("kthais")
-  local buffer = vim.api.nvim_get_current_buf()
-  local mode = vim.api.nvim_get_mode().mode -- visual char (v), visual line (V), block (CTRL-V)
-
-  -- Selection can span to the position at the end of a line where no characters
-  -- are placed (end_col index out of range).
-  local start_col, end_col, end_row
-  local start_row = s[2] - 1
-  if mode == "v" then
-    start_col = s[3] - 1
-    -- Need to clamp to line's width.
-    local end_line = vim.api.nvim_buf_get_lines(buffer, e[2] - 1, e[2], false)[1]
-    end_col = math.min(e[3], #end_line)
-    end_row = e[2] - 1
-  else
-    -- Ignore if in line or block select
-    start_col = 0
-    end_col = 0
-    end_row = e[2]
-  end
-
-  local mark_id = vim.api.nvim_buf_set_extmark(buffer, namespace, start_row, start_col,
-    { end_row = end_row, end_col = end_col, invalidate = true }
-  )
-
-  ---@type ai.Selection
-  local selection = {
-    buffer = buffer,
-    mode = mode,
-    mark_id = mark_id,
-    left = math.min(s[3], e[3]),
-    right = math.max(s[3], e[3]),
-  }
-
-  local selected_text = table.concat(vim.fn.getregion(s, e, { type = mode }), "\n")
-  local agent_output = M._dummy_replace_agent(selected_text)
+  local selection = utils.create_selection()
+  M._dummy_replace_agent(selection.text, function(agent_output)
+    local lines = vim.split(agent_output, "\n")
+    utils.set_lines(lines, selection)
+    vim.api.nvim_buf_del_extmark(selection.buffer, selection.namespace, selection.mark_id)
+  end)
 
   -- M.get_agent(1).prompt(selected_text, {
   --   on_text = function(text)
@@ -65,13 +29,6 @@ vim.api.nvim_create_user_command("AgentReplace", function()
   --     print(prompt_err and prompt_err.message or stop_reason)
   --   end,
   -- })
-  local lines = vim.split(agent_output, "\n")
-
-  -- Agent reponse delay --
-
-  utils.set_lines(lines, selection)
-
-  vim.api.nvim_buf_del_extmark(buffer, namespace, mark_id)
 end, {})
 
 
@@ -81,8 +38,10 @@ function M.get_agent(id)
   return agents[id]
 end
 
-function M._dummy_replace_agent(text)
-  return text:upper()
+---@param text string
+---@param callback fun(output: string)
+function M._dummy_replace_agent(text, callback)
+  vim.defer_fn(function() callback(text:upper()) end, 2000)
 end
 
 function M.create_agent()
