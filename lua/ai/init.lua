@@ -20,7 +20,7 @@ function M.setup(opts)
 
 	vim.api.nvim_create_user_command("CreateAgent", agents.create_agent, {})
 
-	vim.keymap.set("x", "<leader>an", function()
+	vim.keymap.set({ "n", "x" }, "<leader>an", function()
 		agents.create_agent()
 	end, { desc = "Create an agent" })
 
