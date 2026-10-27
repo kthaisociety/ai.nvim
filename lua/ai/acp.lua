@@ -3,9 +3,10 @@ local rpc = require("ai.rpc")
 local M = {}
 
 ---@param cmd string[] command to start the process (i.e. `opencode acp`)
+---@param model string i.e. opencode/big-pickle
 ---@param ready_cb fun(agent: table?, err: table?) called when the session is ready
 ---@param exit_cb? fun(code: integer, signal: integer) called after the process ends
-function M.init(cmd, ready_cb, exit_cb)
+function M.init(cmd, model, ready_cb, exit_cb)
 	local client
 	local session_id
 	local current -- handlers of the running turn
@@ -49,6 +50,17 @@ function M.init(cmd, ready_cb, exit_cb)
 		end
 	end
 
+	---@param id string config option id (i.e. model, mode)
+	local function set_config(id, value, done)
+		client.request("session/set_config_option", {
+			sessionId = session_id,
+			configId = id,
+			value = value,
+		}, function(_, err)
+			done(err)
+		end)
+	end
+
 	---@class ai.PromptHandlers
 	---@field on_text? fun(text: string) answer chunk
 	---@field on_thought? fun(text: string) reasoning chunk
@@ -56,30 +68,25 @@ function M.init(cmd, ready_cb, exit_cb)
 	---@field done fun(stop_reason: string?, err: table?) turn finished
 
 	---@param text string
+	---@param mode string capabilities
 	---@param handlers ai.PromptHandlers
-	local function prompt(text, handlers)
+	local function prompt(text, mode, handlers)
 		if current then
 			return handlers.done(nil, { message = "prompt already running" })
 		end
 		current = handlers
-		client.request("session/prompt", {
-			sessionId = session_id,
-			prompt = { { type = "text", text = text } },
-		}, function(res, err)
-			current = nil
-			handlers.done(res and res.stopReason, err)
-		end)
-	end
-
-	---@param model string agent specific id (i.e. `opencode/big-pickle`)
-	---@param done fun(err: table?)
-	local function set_model(model, done)
-		client.request("session/set_config_option", {
-			sessionId = session_id,
-			configId = "model",
-			value = model,
-		}, function(_, err)
-			done(err)
+		set_config("mode", mode, function(mode_err)
+			if mode_err then
+				current = nil
+				return handlers.done(nil, mode_err)
+			end
+			client.request("session/prompt", {
+				sessionId = session_id,
+				prompt = { { type = "text", text = text } },
+			}, function(res, err)
+				current = nil
+				handlers.done(res and res.stopReason, err)
+			end)
 		end)
 	end
 
@@ -95,14 +102,12 @@ function M.init(cmd, ready_cb, exit_cb)
 
 	---@class ai.Agent
 	---@field prompt fun(text: string, handlers: ai.PromptHandlers)
-	---@field set_model fun(model: string, done: fun(err: table?))
 	---@field cancel fun() stop the current stream
 	---@field stop fun() shut the agent process down
 
 	---@type ai.Agent
 	local agent = {
 		prompt = prompt,
-		set_model = set_model,
 		cancel = cancel,
 		stop = stop,
 	}
@@ -126,7 +131,12 @@ function M.init(cmd, ready_cb, exit_cb)
 					end
 					session_id = res.sessionId
 					agent.capabilities = capabilities
-					ready_cb(agent)
+					set_config("model", model, function(model_err)
+						if model_err then
+							return ready_cb(nil, model_err)
+						end
+						ready_cb(agent)
+					end)
 				end
 			)
 		end
