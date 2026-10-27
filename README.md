@@ -25,3 +25,19 @@ stylua .
 # lint
 selene .
 ```
+
+## Install
+Return the following table in a lazy plugin file, e.g `ai.lua`:
+```
+return {
+  {
+    enabled = true,
+    dir = "~/projects/nvim-agent-plugin", -- local dev checkpoint
+    name = "nvim-agent-plugin",
+    lazy = true,
+    init = function()
+      require("ai").setup({})
+    end,
+  }
+}
+```
