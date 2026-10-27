@@ -1,87 +1,130 @@
 local M = {}
 
+local namespace = vim.api.nvim_create_namespace("ai.nvim.visual_selection")
+
 ---@class ai.Selection
 ---@field buffer integer The buffer the selection came from
 ---@field mark_id integer Pass to nvim_buf_get_extmark_by_id to get mark
----@field mode "v"|"V"|"\22" Visual mode captured at request time
----@field namespace integer Namespace used for extmark
+---@field mode "v" | "V" Visual mode captured at request time
 ---@field text string Text captured by the selection
 
 ---Uses the current cursor location, selection start and mode
----to determine the selection area.
----@return ai.Selection
+---to determine the selection area
+---@return ai.Selection?
 function M.create_selection()
-  local s, e = vim.fn.getpos("v"), vim.fn.getpos(".")
+	local s, e = vim.fn.getpos("v"), vim.fn.getpos(".")
+	if s[2] > e[2] or (s[2] == e[2] and s[3] > e[3]) then
+		-- switch order if start is after end
+		s, e = e, s
+	end
 
-  if s[2] > e[2] or (s[2] == e[2] and s[3] > e[3]) then
-    -- Switch order if start is after end
-    s, e = e, s
-  end
+	local mode = vim.api.nvim_get_mode().mode
+	if mode == "\22" then
+		vim.notify("ai.nvim: VISUAL BLOCK not supported", vim.log.levels.WARN)
+		return nil
+	end
 
-  local buffer = vim.api.nvim_get_current_buf()
-  local namespace = vim.api.nvim_create_namespace("kthais.visual_selection")
-  local mode = vim.api.nvim_get_mode().mode -- visual char (v), visual line (V), block (CTRL-V)
+	local buffer = vim.api.nvim_get_current_buf()
+	local region = vim.fn.getregionpos(s, e, { type = mode })
+	local first, last = region[1][1], region[#region][2]
+	-- getregionpos is 1-based inclusive, extmarks are 0-based with exclusive end_col
+	local start_col, end_col = first[3] - 1, last[3]
+	if mode == "V" then
+		start_col, end_col =
+			0,
+			#vim.api.nvim_buf_get_lines(buffer, last[2] - 1, last[2], false)[1]
+	end
 
-  local end_row, end_col
-  if mode == "v" then
-    -- Selection can span to the position at the end of a line where no characters
-    -- are placed (end_col index out of range). Need to clamp to line's width.
-    local end_line = vim.api.nvim_buf_get_lines(buffer, e[2] - 1, e[2], false)[1]
-    end_col = math.min(e[3], #end_line)
-    end_row = e[2] - 1
-  else
-    -- nvim_buf_set_lines treats end row index as exclusive
-    end_row = e[2]
-  end
+	local mark_id =
+		vim.api.nvim_buf_set_extmark(buffer, namespace, s[2] - 1, start_col, {
+			end_row = e[2] - 1,
+			end_col = end_col,
+			-- text written at edges stay inside region
+			right_gravity = false,
+			end_right_gravity = true,
+		})
 
-  local mark_id = vim.api.nvim_buf_set_extmark(buffer, namespace, s[2] - 1, s[3] - 1,
-    { end_row = end_row, end_col = end_col, invalidate = true }
-  )
-
-  local selected_text = table.concat(vim.fn.getregion(s, e, { type = mode }), "\n")
-
-  ---@type ai.Selection
-  local selection = {
-    buffer = buffer,
-    mode = mode,
-    namespace = namespace,
-    mark_id = mark_id,
-    text = selected_text
-  }
-
-  return selection
+	return {
+		buffer = buffer,
+		mark_id = mark_id,
+		mode = mode,
+		text = table.concat(vim.fn.getregion(s, e, { type = mode }), "\n"),
+	}
 end
 
----Replace the marked region with an agent's output.
----@param lines string[] Agent output, split on newlines
 ---@param selection ai.Selection
+---@return integer[]? mark start row, start col, details
+local function get_mark(selection)
+	if not vim.api.nvim_buf_is_valid(selection.buffer) then
+		return nil
+	end
+	local mark = vim.api.nvim_buf_get_extmark_by_id(
+		selection.buffer,
+		namespace,
+		selection.mark_id,
+		{ details = true }
+	)
+	return mark[1] and mark or nil
+end
+
+---Replaces the selection with text, or appends to it
+---@param selection ai.Selection
+---@param text string
+---@param append? boolean
 ---@return boolean ok True if the replacement was applied
-function M.set_lines(lines, selection)
-  local buffer = selection.buffer
+function M.write(selection, text, append)
+	local mark = get_mark(selection)
+	if not mark then
+		return false
+	end
 
-  if not vim.api.nvim_buf_is_valid(buffer) then
-    vim.notify("KTHAIS.set_lines: Cancelled due to invalid buffer", vim.log.levels.WARN)
-    return false
-  end
+	local start_row, start_col = mark[1], mark[2]
+	if append then
+		start_row, start_col = mark[3].end_row, mark[3].end_col
+	end
+	vim.api.nvim_buf_call(selection.buffer, function()
+		if append then
+			-- stream reverts with one undo
+			pcall(vim.cmd.undojoin)
+		end
+		vim.api.nvim_buf_set_text(
+			selection.buffer,
+			start_row,
+			start_col,
+			mark[3].end_row,
+			mark[3].end_col,
+			vim.split(text, "\n")
+		)
+	end)
+	return true
+end
 
-  local mark = vim.api.nvim_buf_get_extmark_by_id(buffer, selection.namespace, selection.mark_id, { details = true })
+---Deletes the selection into the unnamed register
+---@param selection ai.Selection
+function M.cut(selection)
+	vim.fn.setreg('"', selection.text, selection.mode)
+	local mark = get_mark(selection)
+	if mark and selection.mode == "V" then
+		vim.api.nvim_buf_set_lines(
+			selection.buffer,
+			mark[1],
+			mark[3].end_row + 1,
+			false,
+			{}
+		)
+	elseif mark then
+		M.write(selection, "")
+	end
+end
 
-  if mark[3].invalid then
-    -- Do we want to cancel the AI call if the prompt was removed?
-    vim.notify("KTHAIS.set_lines: Selection was entirely removed, cancelling", vim.log.levels.WARN)
-    return false
-  end
-
-  if selection.mode == "v" then
-    vim.api.nvim_buf_set_text(buffer, mark[1], mark[2], mark[3].end_row, mark[3].end_col, lines)
-  elseif selection.mode == "V" then
-    vim.api.nvim_buf_set_lines(buffer, mark[1], mark[3].end_row, false, lines)
-  else -- visual block
-    -- TODO: Should we support VISUAL BLOCK for AgentReplace?
-    vim.notify("KTHAIS.set_lines: VISUAL BLOCK not supported", vim.log.levels.WARN)
-    return false
-  end
-  return true
+---@param selection ai.Selection
+function M.release(selection)
+	pcall(
+		vim.api.nvim_buf_del_extmark,
+		selection.buffer,
+		namespace,
+		selection.mark_id
+	)
 end
 
 return M

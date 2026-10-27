@@ -1,25 +1,51 @@
 local config = require("ai.config")
 local agents = require("ai.agents")
+local ops = require("ai.ops")
 
 local M = {}
 
+local function get_first_agent()
+	local agent = agents.get_agent(1)
+	if not agent then
+		vim.notify(
+			"No agent exists, hit <leader>aic to create one.",
+			vim.log.levels.WARN
+		)
+	end
+	return agent
+end
+
 function M.setup(opts)
-  local cfg = config.setup(opts)
-  vim.api.nvim_create_user_command("NewAgent", agents.create_agent, {})
+	config.setup(opts)
 
-  vim.keymap.set("x", "<leader>air", "<CMD>AgentReplace<CR>", { desc = "Replace current selection with AI response" })
-  vim.api.nvim_create_user_command("AskAgent", function(opts)
-    local prompt = opts.args
+	vim.api.nvim_create_user_command("CreateAgent", agents.create_agent, {})
 
-    agents.get_agent(1).prompt(prompt, {
-      on_text = function(text)
-        print("chunk: " .. text)
-      end,
-      done = function(stop_reason, prompt_err)
-        print(prompt_err and prompt_err.message or stop_reason)
-      end,
-    })
-  end, { nargs = "+", desc = "Prompt the first agent" })
+	vim.keymap.set("x", "<leader>an", function()
+		agents.create_agent()
+	end, { desc = "Create an agent" })
+
+	vim.keymap.set("x", "<leader>ar", function()
+		local agent = get_first_agent()
+		if agent then
+			ops.replace(agent)
+		end
+	end, { desc = "Replace current selection with AI response" })
+
+	vim.keymap.set("x", "<leader>ai", function()
+		local agent = get_first_agent()
+		if agent then
+			ops.implement(agent)
+		end
+	end, { desc = "Use current selection as AI prompt" })
+
+	vim.keymap.set("x", "<leader>air", function()
+		local agent = get_first_agent()
+		if agent then
+			ops.implement(agent, true)
+		end
+	end, {
+		desc = "Use current selection as AI prompt and cut the prompt from the buffer",
+	})
 end
 
 return M
