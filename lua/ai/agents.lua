@@ -1,5 +1,7 @@
 local acp = require("ai.acp")
 local utils = require("ai.utils")
+local animation = require("ai.animation")
+local config = require("ai.config")
 
 local M = {}
 
@@ -14,13 +16,14 @@ local agents = {}
 -- getpos can however return columns past valid column indices (see clamping below).
 vim.api.nvim_create_user_command("AgentReplace", function()
 	local selection = utils.create_selection()
+	if config.get().animations then
+		selection.anim_timer_close_cb =
+			animation.animate_progress_spinner(selection)
+	end
+
 	M._dummy_replace_agent(selection.text, function(agent_output)
 		utils.replace_text(agent_output, selection)
-		vim.api.nvim_buf_del_extmark(
-			selection.buffer,
-			selection.namespace,
-			selection.mark_id
-		)
+		utils.delete_selection(selection)
 	end)
 	-- TODO: Make undo somehow cancel the request?
 	-- TODO: Should we let the AI see more than the selected text? Probably.

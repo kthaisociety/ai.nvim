@@ -2,6 +2,7 @@ local M = {}
 
 M.defaults = {
 	cmd = { "opencode", "acp" },
+	animations = true,
 }
 
 -- config in use
