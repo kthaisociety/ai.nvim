@@ -1,5 +1,6 @@
 local utils = require("ai.utils")
 local prompt = require("ai.prompt")
+local decoration = require("ai.decoration")
 
 -- Operations an agent can execute
 
@@ -13,7 +14,10 @@ function M.replace(agent)
 		return
 	end
 
-	utils.write(selection, "")
+	-- TODO: Grab which agent is currently active and display in message
+	local highlight = decoration.create_highlight(selection,
+		"Agent (1) is rewriting the selection")
+	local prompt_cleared = false
 	agent.prompt(
 		prompt.coalesce({
 			selection.text,
@@ -25,6 +29,11 @@ function M.replace(agent)
 		"plan",
 		{
 			on_text = function(text)
+				if not prompt_cleared then
+					-- Clear prompt when response lands
+					utils.write(selection, "")
+					prompt_cleared = true
+				end
 				if not utils.write(selection, text, true) then
 					return agent.cancel()
 				end
@@ -35,6 +44,7 @@ function M.replace(agent)
 					vim.notify(err.message, vim.log.levels.ERROR)
 				end
 				utils.release(selection)
+				if highlight then decoration.release(highlight) end
 			end,
 		}
 	)
@@ -48,12 +58,14 @@ function M.implement(agent, cut)
 	if not selection then
 		return
 	end
-	if cut then
-		utils.cut(selection)
-	end
+	local prompt_cleared = false
 	utils.release(selection)
 	agent.prompt(selection.text, "build", {
 		done = function(_, err)
+			if cut and not prompt_cleared then
+				utils.cut(selection)
+				prompt_cleared = true
+			end
 			utils.release(selection)
 			if err then
 				vim.notify(err.message, vim.log.levels.ERROR)

@@ -3,6 +3,7 @@ local M = {}
 M.defaults = {
 	cmd = { "opencode", "acp" },
 	model = "opencode/big-pickle",
+	animations = true,
 }
 
 -- config in use

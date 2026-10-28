@@ -8,7 +8,7 @@ local function get_first_agent()
 	local agent = agents.get_agent(1)
 	if not agent then
 		vim.notify(
-			"No agent exists, hit <leader>aic to create one.",
+			"No agent exists, hit <leader>an to create one.",
 			vim.log.levels.WARN
 		)
 	end
@@ -22,21 +22,22 @@ function M.setup(opts)
 
 	vim.keymap.set({ "n", "x" }, "<leader>an", function()
 		agents.create_agent()
-	end, { desc = "Create an agent" })
+	end, { desc = "(A)gent (N)ew: Create an agent" })
 
 	vim.keymap.set("x", "<leader>ar", function()
-		local agent = get_first_agent()
-		if agent then
-			ops.replace(agent)
-		end
-	end, { desc = "Replace current selection with AI response" })
+			local agent = get_first_agent()
+			if agent then
+				ops.replace(agent)
+			end
+		end,
+		{ desc = "(A)gent (R)eplace: Replace current selection with AI response" })
 
 	vim.keymap.set("x", "<leader>ai", function()
 		local agent = get_first_agent()
 		if agent then
 			ops.implement(agent)
 		end
-	end, { desc = "Use current selection as AI prompt" })
+	end, { desc = "(A)gent (I)mplement: Use current selection as AI prompt" })
 
 	vim.keymap.set("x", "<leader>air", function()
 		local agent = get_first_agent()
@@ -44,7 +45,8 @@ function M.setup(opts)
 			ops.implement(agent, true)
 		end
 	end, {
-		desc = "Use current selection as AI prompt and cut the prompt from the buffer",
+		desc =
+		"(A)gent (I)mplement (R)eplace: Use current selection as AI prompt and cut the prompt from the buffer",
 	})
 end
 

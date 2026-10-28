@@ -101,7 +101,7 @@ function M.init(cmd, model, ready_cb, exit_cb)
 	end
 
 	---@class ai.Agent
-	---@field prompt fun(text: string, handlers: ai.PromptHandlers)
+	---@field prompt fun(text: string, mode: string, handlers: ai.PromptHandlers)
 	---@field cancel fun() stop the current stream
 	---@field stop fun() shut the agent process down
 

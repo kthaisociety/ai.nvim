@@ -39,7 +39,7 @@ function M.create_selection()
 		vim.api.nvim_buf_set_extmark(buffer, namespace, s[2] - 1, start_col, {
 			end_row = e[2] - 1,
 			end_col = end_col,
-			-- text written at edges stay inside region
+			-- only text appended to end of selection stay inside mark
 			right_gravity = false,
 			end_right_gravity = true,
 		})
@@ -53,8 +53,8 @@ function M.create_selection()
 end
 
 ---@param selection ai.Selection
----@return integer[]? mark start row, start col, details
-local function get_mark(selection)
+---@return [integer, integer, vim.api.keyset.extmark_details?]? mark start row, start col, details
+function M.get_mark(selection)
 	if not vim.api.nvim_buf_is_valid(selection.buffer) then
 		return nil
 	end
@@ -73,7 +73,7 @@ end
 ---@param append? boolean
 ---@return boolean ok True if the replacement was applied
 function M.write(selection, text, append)
-	local mark = get_mark(selection)
+	local mark = M.get_mark(selection)
 	if not mark then
 		return false
 	end
@@ -93,7 +93,7 @@ function M.write(selection, text, append)
 			start_col,
 			mark[3].end_row,
 			mark[3].end_col,
-			vim.split(text, "\n")
+			vim.split(text, "\r?\n")
 		)
 	end)
 	return true
@@ -103,7 +103,7 @@ end
 ---@param selection ai.Selection
 function M.cut(selection)
 	vim.fn.setreg('"', selection.text, selection.mode)
-	local mark = get_mark(selection)
+	local mark = M.get_mark(selection)
 	if mark and selection.mode == "V" then
 		vim.api.nvim_buf_set_lines(
 			selection.buffer,
