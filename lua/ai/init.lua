@@ -1,6 +1,7 @@
 local config = require("ai.config")
 local agents = require("ai.agents")
 local ops = require("ai.ops")
+local ui = require("ui")
 
 local M = {}
 
@@ -17,6 +18,7 @@ end
 
 function M.setup(opts)
 	config.setup(opts)
+	ui.setup()
 
 	vim.api.nvim_create_user_command("CreateAgent", agents.create_agent, {})
 

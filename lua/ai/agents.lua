@@ -1,5 +1,6 @@
 local acp = require("ai.acp")
 local config = require("ai.config")
+local status = require("ai.status")
 
 local M = {}
 
@@ -26,6 +27,7 @@ function M.create_agent()
 				print("agent failed to initialize: " .. err.message)
 				return M.delete_agent(id)
 			end
+			status.set(id, "idle")
 			print("agent ready")
 		end,
 
@@ -35,6 +37,7 @@ function M.create_agent()
 			if agents[id] == agent then
 				agents[id] = nil
 			end
+			status.remove(id)
 			print("agent died", code, signal)
 		end
 	)
@@ -55,6 +58,7 @@ function M.delete_agent(id)
 		agent.stop()
 		agents[id] = nil
 	end
+	status.remove(id)
 end
 
 return M
