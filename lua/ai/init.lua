@@ -7,10 +7,8 @@ local M = {}
 local function get_first_agent()
 	local agent = agents.get_agent(1)
 	if not agent then
-		vim.notify(
-			"No agent exists, hit <leader>an to create one.",
-			vim.log.levels.WARN
-		)
+		agents.create_agent()
+		vim.notify("No agent exists. Initializing one...", vim.log.levels.INFO)
 	end
 	return agent
 end
