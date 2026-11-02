@@ -64,15 +64,55 @@ function M.get_mark(selection)
 		selection.mark_id,
 		{ details = true }
 	)
-	return mark[1] and mark or nil
+	if not mark[1] then
+		return nil
+	end
+	-- deleting the last lines leaves the mark past the end of the buffer
+	local last = vim.api.nvim_buf_line_count(selection.buffer) - 1
+	local details = mark[3]
+	if details.end_row > last then
+		details.end_row = last
+		details.end_col = #vim.api.nvim_buf_get_lines(
+			selection.buffer,
+			last,
+			last + 1,
+			false
+		)[1]
+	end
+	if mark[1] > last then
+		mark[1], mark[2] = details.end_row, details.end_col
+	end
+	return mark
 end
 
 ---@param selection ai.Selection
----@return boolean empty True when the selection text is gone
+---@return boolean empty True when the selection text is deleted
 function M.is_empty(selection)
 	local mark = M.get_mark(selection)
-	return not mark
-		or (mark[1] == mark[3].end_row and mark[2] == mark[3].end_col)
+	return mark ~= nil
+		and mark[1] == mark[3].end_row
+		and mark[2] == mark[3].end_col
+end
+
+---Calls back once when the selection text is deleted, until it is released
+---@param selection ai.Selection
+---@param callback fun()
+function M.on_delete(selection, callback)
+	local fired = false
+	vim.api.nvim_buf_attach(selection.buffer, false, {
+		on_lines = function()
+			if fired or not M.get_mark(selection) then
+				return true -- detach
+			end
+			-- on_lines runs inside the change, check once it is done
+			vim.schedule(function()
+				if not fired and M.is_empty(selection) then
+					fired = true
+					callback()
+				end
+			end)
+		end,
+	})
 end
 
 ---Replaces the selection with text, or appends to it

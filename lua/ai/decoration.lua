@@ -8,58 +8,34 @@ local SPINNER_FRAMES =
 
 local M = {}
 
----Highlights the selection, with a spinner and message on a line above it
+---Highlights the selection, with a spinner before it
 ---@param selection ai.Selection
----@param message string
 ---@return fun() release removes the spinner and the highlight
-function M.highlight(selection, message)
-	local mark = utils.get_mark(selection)
-	if not mark then
-		return function() end
-	end
+function M.highlight(selection)
+	local buffer = selection.buffer
 	local timer = config.get().animations and vim.uv.new_timer() or nil
 	local id
 	local i = 0
 
 	-- set_extmark with an id replaces all options, so pass all of them
-	local function set(virt_lines)
-		if not vim.api.nvim_buf_is_valid(selection.buffer) then
-			return
-		end
-		local pos = id
-				and vim.api.nvim_buf_get_extmark_by_id(
-					selection.buffer,
-					namespace,
-					id,
-					{ details = true }
-				)
-			or mark
-		if not pos[1] then
-			return
-		end
-		id = vim.api.nvim_buf_set_extmark(
-			selection.buffer,
-			namespace,
-			pos[1],
-			pos[2],
-			{
-				id = id,
-				end_row = pos[3].end_row,
-				end_col = pos[3].end_col,
-				hl_group = "DiffAdd",
-				priority = 100,
-				-- text appended at the end stays inside the highlight
-				right_gravity = false,
-				end_right_gravity = true,
-				virt_lines = virt_lines,
-				virt_lines_above = true,
-			}
-		)
-	end
-
 	local function draw()
+		local pos = utils.get_mark(selection)
+		if not pos then
+			return
+		end
 		i = i % #SPINNER_FRAMES + 1
-		set({ { { SPINNER_FRAMES[i] .. " " .. message, "DiffAdd" } } })
+		id = vim.api.nvim_buf_set_extmark(buffer, namespace, pos[1], pos[2], {
+			id = id,
+			end_row = pos[3].end_row,
+			end_col = pos[3].end_col,
+			hl_group = "DiffAdd",
+			priority = 100,
+			-- text appended at the end stays inside the highlight
+			right_gravity = false,
+			end_right_gravity = true,
+			virt_text = { { SPINNER_FRAMES[i] .. " ", "DiffAdd" } },
+			virt_text_pos = "inline",
+		})
 	end
 
 	local released = false
@@ -72,14 +48,10 @@ function M.highlight(selection, message)
 			timer:stop()
 			timer:close()
 		end
-		pcall(vim.api.nvim_buf_del_extmark, selection.buffer, namespace, id)
+		pcall(vim.api.nvim_buf_del_extmark, buffer, namespace, id)
 	end
 
 	draw()
-	-- lines above line 1 only show when the window is scrolled to them
-	if mark[1] == 0 then
-		vim.fn.winrestview({ topfill = 1 })
-	end
 	if timer then
 		timer:start(
 			100,

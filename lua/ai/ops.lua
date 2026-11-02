@@ -14,9 +14,11 @@ function M.replace(agent)
 		return
 	end
 
-	-- TODO: Grab which agent is currently active and display in message
-	local release_highlight =
-		decoration.highlight(selection, "Agent (1) is rewriting the selection")
+	local release_highlight = decoration.highlight(selection)
+	utils.on_delete(selection, function()
+		release_highlight()
+		agent.cancel()
+	end)
 	local prompt_cleared = false
 	agent.prompt(
 		prompt.coalesce({
@@ -30,11 +32,8 @@ function M.replace(agent)
 		{
 			on_text = function(text)
 				-- an empty chunk would leave the selection looking deleted
-				if text == "" then
+				if text == "" or utils.is_empty(selection) then
 					return
-				end
-				if utils.is_empty(selection) then
-					return agent.cancel()
 				end
 				if not prompt_cleared then
 					-- Clear prompt when response lands
@@ -45,7 +44,8 @@ function M.replace(agent)
 			end,
 			done = function(_, err)
 				release_highlight()
-				if err then
+				-- after a delete the error is the cancel, nothing to restore
+				if err and not utils.is_empty(selection) then
 					utils.write(selection, selection.text)
 					vim.notify(err.message, vim.log.levels.ERROR)
 				end
