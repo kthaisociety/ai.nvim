@@ -67,6 +67,14 @@ function M.get_mark(selection)
 	return mark[1] and mark or nil
 end
 
+---@param selection ai.Selection
+---@return boolean empty True when the selection text is gone
+function M.is_empty(selection)
+	local mark = M.get_mark(selection)
+	return not mark
+		or (mark[1] == mark[3].end_row and mark[2] == mark[3].end_col)
+end
+
 ---Replaces the selection with text, or appends to it
 ---@param selection ai.Selection
 ---@param text string

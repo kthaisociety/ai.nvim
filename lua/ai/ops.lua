@@ -29,14 +29,19 @@ function M.replace(agent)
 		"plan",
 		{
 			on_text = function(text)
+				-- an empty chunk would leave the selection looking deleted
+				if text == "" then
+					return
+				end
+				if utils.is_empty(selection) then
+					return agent.cancel()
+				end
 				if not prompt_cleared then
 					-- Clear prompt when response lands
 					utils.write(selection, "")
 					prompt_cleared = true
 				end
-				if not utils.write(selection, text, true) then
-					return agent.cancel()
-				end
+				utils.write(selection, text, true)
 			end,
 			done = function(_, err)
 				release_highlight()
@@ -60,7 +65,7 @@ function M.implement(agent, cut)
 	end
 	agent.prompt(selection.text, "build", {
 		done = function(_, err)
-			if cut then
+			if cut and not utils.is_empty(selection) then
 				utils.cut(selection)
 			end
 			utils.release(selection)
