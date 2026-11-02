@@ -15,7 +15,7 @@ function M.replace(agent)
 	end
 
 	local release_highlight = decoration.highlight(selection)
-	utils.on_delete(selection, function()
+	utils.watch(selection, function()
 		release_highlight()
 		agent.cancel()
 	end)

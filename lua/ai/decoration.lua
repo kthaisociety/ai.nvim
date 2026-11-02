@@ -13,7 +13,8 @@ local M = {}
 ---@return fun() release removes the spinner and the highlight
 function M.highlight(selection)
 	local buffer = selection.buffer
-	local timer = config.get().animations and vim.uv.new_timer() or nil
+	-- the timer also moves the highlight to follow the selection
+	local timer = vim.uv.new_timer()
 	local id
 	local i = 0
 
@@ -23,16 +24,17 @@ function M.highlight(selection)
 		if not pos then
 			return
 		end
-		i = i % #SPINNER_FRAMES + 1
+		if i == 0 or config.get().animations then
+			i = i % #SPINNER_FRAMES + 1
+		end
 		id = vim.api.nvim_buf_set_extmark(buffer, namespace, pos[1], pos[2], {
 			id = id,
 			end_row = pos[3].end_row,
 			end_col = pos[3].end_col,
 			hl_group = "DiffAdd",
 			priority = 100,
-			-- text appended at the end stays inside the highlight
 			right_gravity = false,
-			end_right_gravity = true,
+			end_right_gravity = false,
 			virt_text = { { SPINNER_FRAMES[i] .. " ", "DiffAdd" } },
 			virt_text_pos = "inline",
 		})
