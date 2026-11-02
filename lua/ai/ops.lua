@@ -15,8 +15,8 @@ function M.replace(agent)
 	end
 
 	-- TODO: Grab which agent is currently active and display in message
-	local highlight = decoration.create_highlight(selection,
-		"Agent (1) is rewriting the selection")
+	local release_highlight =
+		decoration.highlight(selection, "Agent (1) is rewriting the selection")
 	local prompt_cleared = false
 	agent.prompt(
 		prompt.coalesce({
@@ -39,12 +39,12 @@ function M.replace(agent)
 				end
 			end,
 			done = function(_, err)
+				release_highlight()
 				if err then
 					utils.write(selection, selection.text)
 					vim.notify(err.message, vim.log.levels.ERROR)
 				end
 				utils.release(selection)
-				if highlight then decoration.release(highlight) end
 			end,
 		}
 	)
@@ -58,13 +58,10 @@ function M.implement(agent, cut)
 	if not selection then
 		return
 	end
-	local prompt_cleared = false
-	utils.release(selection)
 	agent.prompt(selection.text, "build", {
 		done = function(_, err)
-			if cut and not prompt_cleared then
+			if cut then
 				utils.cut(selection)
-				prompt_cleared = true
 			end
 			utils.release(selection)
 			if err then
