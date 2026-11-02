@@ -1,5 +1,6 @@
 local utils = require("ai.utils")
 local prompt = require("ai.prompt")
+local agents = require("ai.agents")
 
 -- Operations an agent can execute
 
@@ -14,7 +15,8 @@ function M.replace(agent)
 	end
 
 	utils.write(selection, "")
-	agent.prompt(
+	agents.prompt(
+		agent.id,
 		prompt.coalesce({
 			selection.text,
 			prompt.clause(
@@ -52,7 +54,7 @@ function M.implement(agent, cut)
 		utils.cut(selection)
 	end
 	utils.release(selection)
-	agent.prompt(selection.text, "build", {
+	agents.prompt(agent.id, selection.text, "build", {
 		done = function(_, err)
 			utils.release(selection)
 			if err then

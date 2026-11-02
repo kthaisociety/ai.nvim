@@ -1,22 +1,13 @@
 --knows how to draw/hide one icon. No agents, no status.
+local style = require("ui.style")
+
 local M = {}
 
 --tracks the floating windows displaying the agents
 local floats = {}
 
---icons shown for each state
-local icon = {
-	idle = "●",
-	active = "●",
-	done = "●",
-}
-
---highlighted groups for each state
-local groups = {
-	idle = "AI_idle",
-	active = "AI_active",
-	done = "AI_done",
-}
+--tracks the state each agent was last seen in
+local states = {}
 
 --remov an existing window
 local function hide(id)
@@ -36,27 +27,44 @@ local function hide(id)
 	floats[id] = nil
 end
 
-local function show(id, state)
+local function sorted_ids()
+	local ids = {}
+	for id in pairs(states) do
+		ids[#ids + 1] = id
+	end
+	table.sort(ids)
+	return ids
+end
+
+local function show(id, state, col)
 	hide(id)
+	local label = style.circle(id)
+	local label_width = vim.fn.strdisplaywidth(label)
+
 	local buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
-		icon[state]
+		label
 	})
-	vim.api.nvim_buf_add_highlight(buf, -1, groups[state], 0, 0, -1)
+	vim.api.nvim_buf_add_highlight(
+		buf,
+		-1,
+		style.group(state),
+		0,
+		0,
+		-1
+	)
 
 	local win = vim.api.nvim_get_current_win()
 	local height = vim.api.nvim_win_get_height(win)
 
 	local row = height - 1
-	local width = vim.api.nvim_win_get_width(win)
-	local col = width - 1
 
 	local float_win = vim.api.nvim_open_win(buf, false, {
 		relative = "win",
 		win = win,
 		row = row,
 		col = col,
-		width = 1,
+		width = label_width,
 		height = 1,
 		style = "minimal",
 		border = "none",
@@ -70,12 +78,41 @@ local function show(id, state)
 	}
 end
 
+local function redraw()
+	local win = vim.api.nvim_get_current_win()
+	local win_width = vim.api.nvim_win_get_width(win)
+
+	local ids = sorted_ids()
+
+	for id in pairs(floats) do
+		if states[id] == nil then
+			hide(id)
+		end
+	end
+
+	local total = 0
+	for _, id in ipairs(ids) do
+		total = total + vim.fn.strdisplaywidth(style.circle(id))
+	end
+
+	local col = win_width - total
+	if col < 0 then
+		col = 0
+	end
+
+	for _, id in ipairs(ids) do
+		show(id, states[id], col)
+		col = col + vim.fn.strdisplaywidth(style.circle(id))
+	end
+end
+
 function M.render(id, state)
 	if state == nil then
-		hide(id)
+		states[id] = nil
 	else
-		show(id, state)
+		states[id] = state
 	end
+	redraw()
 end
 
 return M

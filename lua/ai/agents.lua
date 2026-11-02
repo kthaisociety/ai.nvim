@@ -41,6 +41,7 @@ function M.create_agent()
 			print("agent died", code, signal)
 		end
 	)
+	agent.id = id
 	agents[id] = agent
 	return id
 end
@@ -59,6 +60,24 @@ function M.delete_agent(id)
 		agents[id] = nil
 	end
 	status.remove(id)
+end
+
+function M.prompt(id, text, mode, handlers)
+	local agent = agents[id]
+	if not agent then
+		return
+	end
+
+	status.set(id, "active")
+
+	local finished = handlers.done
+	handlers.done = function(reason, err)
+		status.set(id, err and "idle" or "done")
+		if finished then
+			finished(reason, err)
+		end
+	end
+	return agent.prompt(text, mode, handlers)
 end
 
 return M
