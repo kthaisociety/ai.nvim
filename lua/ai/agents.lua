@@ -6,8 +6,9 @@ local M = {}
 ---@type table<integer, ai.Agent>
 local agents = {}
 
----@return integer id
-function M.create_agent()
+---@param on_ready? fun(agent: ai.Agent?, err: table?)
+---@return ai.Agent
+function M.create_agent(on_ready)
 	local cfg = config.get()
 
 	local id = 1
@@ -24,9 +25,16 @@ function M.create_agent()
 		function(_, err)
 			if err then
 				print("agent failed to initialize: " .. err.message)
-				return M.delete_agent(id)
+				M.delete_agent(id)
+				if on_ready then
+					on_ready(nil, err)
+				end
+				return
 			end
 			print("agent ready")
+			if on_ready then
+				on_ready(agent)
+			end
 		end,
 
 		-- on exit
@@ -39,7 +47,39 @@ function M.create_agent()
 		end
 	)
 	agents[id] = agent
-	return id
+	return agent
+end
+
+---Runs a prompt on a ready agent, or starts one and prompts it when ready
+---@param text string
+---@param mode string
+---@param handlers ai.PromptHandlers
+---@return fun() cancel
+function M.run(text, mode, handlers)
+	for _, agent in pairs(agents) do
+		if agent.status() == "ready" then
+			agent.prompt(text, mode, handlers)
+			return agent.cancel
+		end
+	end
+
+	local cancelled = false
+	local agent = M.create_agent(function(ready, err)
+		if err then
+			return handlers.done(nil, err)
+		end
+		if cancelled then
+			return handlers.done(nil, { message = "cancelled" })
+		end
+		ready.prompt(text, mode, handlers)
+	end)
+
+	return function()
+		cancelled = true
+		if agent.status() == "ready" or agent.status() == "busy" then
+			agent.cancel()
+		end
+	end
 end
 
 ---@param id integer

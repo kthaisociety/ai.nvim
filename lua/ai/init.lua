@@ -4,47 +4,39 @@ local ops = require("ai.ops")
 
 local M = {}
 
-local function get_first_agent()
-	local agent = agents.get_agent(1)
-	if not agent then
-		agents.create_agent()
-		vim.notify("No agent exists. Initializing one...", vim.log.levels.INFO)
-	end
-	return agent
-end
-
 function M.setup(opts)
 	config.setup(opts)
 
-	vim.api.nvim_create_user_command("CreateAgent", agents.create_agent, {})
+	vim.api.nvim_create_user_command("CreateAgent", function()
+		agents.create_agent()
+	end, {})
+
+	vim.keymap.set({ "n", "x" }, "<leader>a", function()
+		ops.ask(agents.run)
+	end, {
+		desc = "(A)sk: Prompt an agent, using the cursor location as context",
+	})
 
 	vim.keymap.set({ "n", "x" }, "<leader>an", function()
 		agents.create_agent()
 	end, { desc = "(A)gent (N)ew: Create an agent" })
 
-	vim.keymap.set("x", "<leader>ar", function()
-		local agent = get_first_agent()
-		if agent then
-			ops.replace(agent)
-		end
+	vim.keymap.set({ "n", "x" }, "<leader>ar", function()
+		ops.replace(agents.run)
 	end, {
-		desc = "(A)gent (R)eplace: Replace current selection with AI response",
+		desc = "(A)gent (R)eplace: Replace selection or current line with AI response",
 	})
 
-	vim.keymap.set("x", "<leader>ai", function()
-		local agent = get_first_agent()
-		if agent then
-			ops.implement(agent)
-		end
-	end, { desc = "(A)gent (I)mplement: Use current selection as AI prompt" })
-
-	vim.keymap.set("x", "<leader>air", function()
-		local agent = get_first_agent()
-		if agent then
-			ops.implement(agent, true)
-		end
+	vim.keymap.set({ "n", "x" }, "<leader>ai", function()
+		ops.implement(agents.run)
 	end, {
-		desc = "(A)gent (I)mplement (R)eplace: Use current selection as AI prompt and cut the prompt from the buffer",
+		desc = "(A)gent (I)mplement: Use selection or current line as AI prompt",
+	})
+
+	vim.keymap.set({ "n", "x" }, "<leader>air", function()
+		ops.implement(agents.run, true)
+	end, {
+		desc = "(A)gent (I)mplement (R)eplace: Use selection or current line as AI prompt and cut the prompt",
 	})
 end
 
