@@ -38,7 +38,8 @@ function M.replace(run)
 		return
 	end
 
-	local release_highlight = decoration.highlight(selection)
+	local release_highlight =
+		decoration.highlight(selection, "Agent is rewriting the selection")
 	local prompt_cleared = false
 	local cancel = run(
 		prompt.coalesce({

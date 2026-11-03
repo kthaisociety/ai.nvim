@@ -10,12 +10,14 @@ local M = {}
 
 ---Highlights the selection, with a spinner before it
 ---@param selection ai.Selection
+---@param header string shown by the selection if enabled in config
 ---@return fun() release removes the spinner and the highlight
-function M.highlight(selection)
+function M.highlight(selection, header)
 	local buffer = selection.buffer
 	-- the timer also moves the highlight to follow the selection
 	local timer = vim.uv.new_timer()
 	local id
+	local header_id
 	local i = 0
 
 	-- set_extmark with an id replaces all options, so pass all of them
@@ -38,6 +40,17 @@ function M.highlight(selection)
 			virt_text = { { SPINNER_FRAMES[i] .. " ", "DiffAdd" } },
 			virt_text_pos = "inline",
 		})
+		if config.get().selection_header then
+			-- virt_lines above the first line are hidden, so go below instead
+			local above = pos[1] > 0
+			local row = above and pos[1] or pos[3].end_row
+			header_id =
+				vim.api.nvim_buf_set_extmark(buffer, namespace, row, 0, {
+					id = header_id,
+					virt_lines = { { { header, "DiffAdd" } } },
+					virt_lines_above = above,
+				})
+		end
 	end
 
 	local released = false
@@ -51,6 +64,7 @@ function M.highlight(selection)
 			timer:close()
 		end
 		pcall(vim.api.nvim_buf_del_extmark, buffer, namespace, id)
+		pcall(vim.api.nvim_buf_del_extmark, buffer, namespace, header_id)
 	end
 
 	draw()
