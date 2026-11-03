@@ -10,6 +10,7 @@ function M.init(cmd, model, ready_cb, exit_cb)
 	local client
 	local session_id
 	local current -- handlers of the running turn
+	local status = "initializing" -- initializing, ready, busy, dead
 
 	local function emit(name, ...)
 		local handler = current and current[name]
@@ -61,6 +62,20 @@ function M.init(cmd, model, ready_cb, exit_cb)
 		end)
 	end
 
+	local function finish_turn()
+		current = nil
+		if status ~= "dead" then
+			status = "ready"
+		end
+	end
+
+	local function fail(err)
+		status = "dead"
+		current = nil
+		client.stop()
+		ready_cb(nil, err)
+	end
+
 	---@class ai.PromptHandlers
 	---@field on_text? fun(text: string) answer chunk
 	---@field on_thought? fun(text: string) reasoning chunk
@@ -71,20 +86,24 @@ function M.init(cmd, model, ready_cb, exit_cb)
 	---@param mode string capabilities
 	---@param handlers ai.PromptHandlers
 	local function prompt(text, mode, handlers)
-		if current then
+		if status == "busy" then
 			return handlers.done(nil, { message = "prompt already running" })
 		end
+		if status ~= "ready" then
+			return handlers.done(nil, { message = "agent is " .. status })
+		end
+		status = "busy"
 		current = handlers
 		set_config("mode", mode, function(mode_err)
 			if mode_err then
-				current = nil
+				finish_turn()
 				return handlers.done(nil, mode_err)
 			end
 			client.request("session/prompt", {
 				sessionId = session_id,
 				prompt = { { type = "text", text = text } },
 			}, function(res, err)
-				current = nil
+				finish_turn()
 				handlers.done(res and res.stopReason, err)
 			end)
 		end)
@@ -97,22 +116,37 @@ function M.init(cmd, model, ready_cb, exit_cb)
 
 	-- stop process
 	local function stop()
+		status = "dead"
+		current = nil
 		client.stop()
+	end
+
+	-- get status
+	local function get_status()
+		return status
 	end
 
 	---@class ai.Agent
 	---@field prompt fun(text: string, mode: string, handlers: ai.PromptHandlers)
 	---@field cancel fun() stop the current stream
 	---@field stop fun() shut the agent process down
+	---@field status fun(): "initializing"|"ready"|"busy"|"dead"
 
 	---@type ai.Agent
 	local agent = {
 		prompt = prompt,
 		cancel = cancel,
 		stop = stop,
+		status = get_status,
 	}
 
-	client = rpc.init(cmd, on_msg, exit_cb)
+	client = rpc.init(cmd, on_msg, function(code, signal)
+		status = "dead"
+		current = nil
+		if exit_cb then
+			exit_cb(code, signal)
+		end
+	end)
 
 	-- ACP initialization handshake + session start
 	client.request(
@@ -120,21 +154,22 @@ function M.init(cmd, model, ready_cb, exit_cb)
 		{ protocolVersion = 1, clientCapabilities = vim.empty_dict() },
 		function(capabilities, err)
 			if err then
-				return ready_cb(nil, err)
+				return fail(err)
 			end
 			client.request(
 				"session/new",
 				{ cwd = vim.fn.getcwd(), mcpServers = {} },
 				function(res, session_err)
 					if session_err then
-						return ready_cb(nil, session_err)
+						return fail(session_err)
 					end
 					session_id = res.sessionId
 					agent.capabilities = capabilities
 					set_config("model", model, function(model_err)
 						if model_err then
-							return ready_cb(nil, model_err)
+							return fail(model_err)
 						end
+						status = "ready"
 						ready_cb(agent)
 					end)
 				end
