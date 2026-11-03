@@ -14,7 +14,8 @@ function M.replace(agent)
 		return
 	end
 
-	local release_highlight = decoration.highlight(selection)
+	local release_highlight =
+		decoration.highlight(selection, "Agent is rewriting the selection")
 	utils.watch(selection, function()
 		release_highlight()
 		agent.cancel()
