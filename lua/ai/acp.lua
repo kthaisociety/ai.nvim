@@ -11,7 +11,7 @@ function M.init(cmd, model, ready_cb, exit_cb, on_status)
 	local client
 	local session_id
 	local current -- handlers of the running turn
-	local status -- initializing, idle, busy, dead
+	local status -- initializing, idle, running, done, dead
 
 	local function set_status(new)
 		if new ~= status then
@@ -74,7 +74,7 @@ function M.init(cmd, model, ready_cb, exit_cb, on_status)
 	local function finish_turn()
 		current = nil
 		if status ~= "dead" then
-			set_status("idle")
+			set_status("done")
 		end
 	end
 
@@ -95,13 +95,13 @@ function M.init(cmd, model, ready_cb, exit_cb, on_status)
 	---@param mode string capabilities
 	---@param handlers ai.PromptHandlers
 	local function prompt(text, mode, handlers)
-		if status == "busy" then
+		if status == "running" then
 			return handlers.done(nil, { message = "prompt already running" })
 		end
-		if status ~= "idle" then
+		if status ~= "idle" and status ~= "done" then
 			return handlers.done(nil, { message = "agent is " .. status })
 		end
-		set_status("busy")
+		set_status("running")
 		current = handlers
 		set_config("mode", mode, function(mode_err)
 			if mode_err then
@@ -139,7 +139,7 @@ function M.init(cmd, model, ready_cb, exit_cb, on_status)
 	---@field prompt fun(text: string, mode: string, handlers: ai.PromptHandlers)
 	---@field cancel fun() stop the current stream
 	---@field stop fun() shut the agent process down
-	---@field status fun(): "initializing"|"idle"|"busy"|"dead"
+	---@field status fun(): "initializing"|"idle"|"running"|"done"|"dead"
 
 	---@type ai.Agent
 	local agent = {

@@ -67,7 +67,7 @@ end
 ---@return fun() cancel
 function M.run(text, mode, handlers)
 	for _, agent in pairs(agents) do
-		if agent.status() == "idle" then
+		if agent.status() == "idle" or agent.status() == "done" then
 			agent.prompt(text, mode, handlers)
 			return agent.cancel
 		end
@@ -86,7 +86,7 @@ function M.run(text, mode, handlers)
 
 	return function()
 		cancelled = true
-		if agent.status() == "idle" or agent.status() == "busy" then
+		if agent.status() == "idle" or agent.status() == "running" then
 			agent.cancel()
 		end
 	end

@@ -14,7 +14,7 @@ function M.setup()
 		link = "DiagnosticHint",
 	})
 
-	vim.api.nvim_set_hl(0, "AI_busy", {
+	vim.api.nvim_set_hl(0, "AI_running", {
 		default = true,
 		link = "DiagnosticOk",
 	})

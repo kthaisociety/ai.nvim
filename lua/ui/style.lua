@@ -1,10 +1,10 @@
 local M = {}
 
-M.icons = { initializing = "●", idle = "●", busy = "●", done = "●" }
+M.icons = { initializing = "●", idle = "●", running = "●", done = "●" }
 M.groups = {
 	initializing = "AI_initializing",
 	idle = "AI_idle",
-	busy = "AI_busy",
+	running = "AI_running",
 	done = "AI_done",
 }
 
