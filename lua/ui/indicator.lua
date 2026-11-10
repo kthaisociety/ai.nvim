@@ -38,7 +38,7 @@ end
 
 local function show(id, state, col)
 	hide(id)
-	local label = style.circle(id)
+	local label = style.label(id)
 	local label_width = vim.fn.strdisplaywidth(label)
 
 	local buf = vim.api.nvim_create_buf(false, true)
@@ -85,7 +85,7 @@ local function redraw()
 
 	local total = 0
 	for _, id in ipairs(ids) do
-		total = total + vim.fn.strdisplaywidth(style.circle(id))
+		total = total + vim.fn.strdisplaywidth(style.label(id))
 	end
 
 	local col = win_width - total
@@ -95,7 +95,7 @@ local function redraw()
 
 	for _, id in ipairs(ids) do
 		show(id, states[id], col)
-		col = col + vim.fn.strdisplaywidth(style.circle(id))
+		col = col + vim.fn.strdisplaywidth(style.label(id))
 	end
 end
 
