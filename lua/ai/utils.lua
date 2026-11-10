@@ -245,4 +245,20 @@ function M.release(selection)
 	)
 end
 
+---Extmark ids of the selections covering the cursor, outermost first
+---@return integer[] mark_ids
+function M.get_marks_at_cursor()
+	local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+	local marks = vim.api.nvim_buf_get_extmarks(
+		0,
+		namespace,
+		{ row - 1, col },
+		{ row - 1, col },
+		{ overlap = true }
+	)
+	return vim.tbl_map(function(mark)
+		return mark[1]
+	end, marks)
+end
+
 return M

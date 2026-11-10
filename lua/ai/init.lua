@@ -1,6 +1,7 @@
 local config = require("ai.config")
 local agents = require("ai.agents")
 local ops = require("ai.ops")
+local utils = require("ai.utils")
 local ui = require("ui")
 
 local M = {}
@@ -18,6 +19,18 @@ function M.setup(opts)
 	end, {
 		desc = "(A)sk: Prompt an agent, using the cursor location as context",
 	})
+
+	vim.keymap.set({ "n", "x" }, "<C-c>", function()
+		local buffer = vim.api.nvim_get_current_buf()
+		local handles = agents.get_cancel_handles(buffer)
+		local first_mark_id = utils.get_marks_at_cursor()[1]
+		local cancel = handles and first_mark_id and handles[first_mark_id]
+		if cancel then
+			cancel()
+		else
+			vim.notify("No agent to cancel", vim.log.levels.INFO)
+		end
+	end)
 
 	vim.keymap.set({ "n", "x" }, "<leader>an", function()
 		agents.create_agent()

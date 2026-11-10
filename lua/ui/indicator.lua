@@ -48,7 +48,6 @@ end
 local function label(id)
 	local text = style.label(id)
 	if states[id] == "running" then
-		-- the spinner takes the left padding so the id does not move
 		return style.label(frames[frame])
 	end
 	return text
