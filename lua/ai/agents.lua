@@ -51,51 +51,50 @@ function M.create_agent(on_ready)
 		function(new)
 			if new == "dead" then
 				status.remove(id)
+				if status.get_selected() == id then
+					status.select(nil)
+				end
 			else
 				status.set(id, new)
 			end
 		end
 	)
 	agents[id] = agent
+	M.select_agent(id)
 	return agent
 end
 
----Runs a prompt on a ready agent, or starts one and prompts it when ready
+---Runs a prompt on the selected agent
 ---@param text string
 ---@param mode string
 ---@param handlers ai.PromptHandlers
 ---@return fun() cancel
 function M.run(text, mode, handlers)
-	for _, agent in pairs(agents) do
-		if agent.status() == "idle" or agent.status() == "done" then
-			agent.prompt(text, mode, handlers)
-			return agent.cancel
-		end
+	local agent = agents[status.get_selected()]
+	if not agent then
+		handlers.done(nil, { message = "no agent selected" })
+		return function() end
 	end
-
-	local cancelled = false
-	local agent = M.create_agent(function(ready, err)
-		if err then
-			return handlers.done(nil, err)
-		end
-		if cancelled then
-			return handlers.done(nil, { message = "cancelled" })
-		end
-		ready.prompt(text, mode, handlers)
-	end)
-
-	return function()
-		cancelled = true
-		if agent.status() == "idle" or agent.status() == "running" then
-			agent.cancel()
-		end
-	end
+	-- acp rejects the prompt through handlers.done when the agent is not free
+	agent.prompt(text, mode, handlers)
+	return agent.cancel
 end
 
 ---@param id integer
 ---@return ai.Agent?
 function M.get_agent(id)
 	return agents[id]
+end
+
+---@param id integer
+function M.select_agent(id)
+	if not agents[id] then
+		return vim.notify(
+			string.format("Agent with id %d does not exist", id),
+			vim.log.levels.ERROR
+		)
+	end
+	status.select(id)
 end
 
 ---@param id integer

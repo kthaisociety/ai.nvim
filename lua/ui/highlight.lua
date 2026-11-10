@@ -23,6 +23,12 @@ function M.setup()
 		default = true,
 		link = "DiagnosticWarn",
 	})
+
+	-- layered over the state color
+	vim.api.nvim_set_hl(0, "AI_selected", {
+		default = true,
+		reverse = true,
+	})
 end
 
 return M

@@ -1,8 +1,12 @@
----stores state changes and notifies subscribers when state changes.
+---stores agent states and the selected agent, and notifies subscribers on changes.
 local M = {}
 
 local states = {}
 local subscribers = {}
+
+---@type integer?
+local selected
+local select_subscribers = {}
 
 --- Set the state for an ID and notify all subscribers
 ---@param id integer The id of the agent
@@ -48,6 +52,26 @@ end
 ---@return nil
 function M.subscribe(callback)
 	subscribers[#subscribers + 1] = callback
+end
+
+--- Set the selected agent and notify select subscribers
+---@param id integer? nil clears the selection
+function M.select(id)
+	selected = id
+	for _, subscriber in ipairs(select_subscribers) do
+		subscriber(id)
+	end
+end
+
+---@return integer? id The selected agent
+function M.get_selected()
+	return selected
+end
+
+--- Register a callback to receive selection changes
+---@param callback fun(id: integer?)
+function M.subscribe_select(callback)
+	select_subscribers[#select_subscribers + 1] = callback
 end
 
 return M

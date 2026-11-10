@@ -40,6 +40,13 @@ function M.setup(opts)
 	end, {
 		desc = "(A)gent (I)mplement (R)eplace: Use selection or current line as AI prompt and cut the prompt",
 	})
+
+	vim.keymap.set({ "n" }, "<leader>as", function()
+		local id = tonumber(vim.fn.getcharstr())
+		if id then
+			agents.select_agent(id)
+		end
+	end, { desc = "(A)gent (S)elect: select an agent by index" })
 end
 
 return M

@@ -1,4 +1,4 @@
---makes the indicator listen to status.
+--makes the indicator listen to status and selection.
 
 local highlight = require("ui.highlight")
 local status = require("ai.status")
@@ -11,8 +11,9 @@ function M.setup()
 
 	status.subscribe(function(id, _, new)
 		indicator.render(id, new)
-		vim.cmd("redrawstatus!")
 	end)
+
+	status.subscribe_select(indicator.select)
 end
 
 return M

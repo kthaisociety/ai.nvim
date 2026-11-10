@@ -8,6 +8,8 @@ local SPINNER_FRAMES =
 
 local M = {}
 
+M.SPINNER_FRAMES = SPINNER_FRAMES
+
 ---Highlights the selection, with a spinner before it
 ---@param selection ai.Selection
 ---@param header string shown by the selection if enabled in config

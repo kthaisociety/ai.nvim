@@ -1,5 +1,11 @@
 --knows how to draw/hide one icon. No agents, no status.
 local style = require("ui.style")
+local config = require("ai.config")
+local frames = require("ai.decoration").SPINNER_FRAMES
+
+local namespace = vim.api.nvim_create_namespace("ai.nvim.indicator")
+local timer = assert(vim.uv.new_timer())
+local frame = 1
 
 local M = {}
 
@@ -8,6 +14,9 @@ local floats = {}
 
 --tracks the state each agent was last seen in
 local states = {}
+
+---@type integer?
+local selected
 
 --remov an existing window
 local function hide(id)
@@ -36,16 +45,53 @@ local function sorted_ids()
 	return ids
 end
 
-local function show(id, state, col)
-	hide(id)
-	local label = style.label(id)
-	local label_width = vim.fn.strdisplaywidth(label)
+local function label(id)
+	local text = style.label(id)
+	if states[id] == "running" then
+		-- the spinner takes the left padding so the id does not move
+		return style.label(frames[frame])
+	end
+	return text
+end
 
+local function paint(buf, id)
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { label(id) })
+	vim.api.nvim_buf_clear_namespace(buf, namespace, 0, -1)
+	vim.api.nvim_buf_add_highlight(
+		buf,
+		namespace,
+		style.group(states[id]),
+		0,
+		0,
+		-1
+	)
+	if id == selected then
+		vim.api.nvim_buf_add_highlight(buf, namespace, "AI_selected", 0, 0, -1)
+	end
+end
+
+local function tick()
+	frame = frame % #frames + 1
+	for id, float in pairs(floats) do
+		if states[id] == "running" and vim.api.nvim_buf_is_valid(float.buf) then
+			paint(float.buf, id)
+		end
+	end
+end
+
+local function animate()
+	if not vim.tbl_contains(vim.tbl_values(states), "running") then
+		timer:stop()
+	elseif config.get().animations and not timer:is_active() then
+		timer:start(100, 100, vim.schedule_wrap(tick))
+	end
+end
+
+local function show(id, col)
+	hide(id)
 	local buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
-		label,
-	})
-	vim.api.nvim_buf_add_highlight(buf, -1, style.group(state), 0, 0, -1)
+	paint(buf, id)
+	local label_width = vim.fn.strdisplaywidth(style.label(id))
 
 	local win = vim.api.nvim_get_current_win()
 	local height = vim.api.nvim_win_get_height(win)
@@ -94,7 +140,7 @@ local function redraw()
 	end
 
 	for _, id in ipairs(ids) do
-		show(id, states[id], col)
+		show(id, col)
 		col = col + vim.fn.strdisplaywidth(style.label(id))
 	end
 end
@@ -105,6 +151,13 @@ function M.render(id, state)
 	else
 		states[id] = state
 	end
+	redraw()
+	animate()
+end
+
+---@param id integer?
+function M.select(id)
+	selected = id
 	redraw()
 end
 
