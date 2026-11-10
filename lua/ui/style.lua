@@ -26,4 +26,8 @@ function M.circle(id)
 	return "(" .. tostring(id) .. ")"
 end
 
+function M.label(id)
+	return " " .. M.circle(id) .. " "
+end
+
 return M
