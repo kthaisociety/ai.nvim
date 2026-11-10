@@ -6,11 +6,20 @@ local M = {}
 ---@param model string i.e. opencode/big-pickle
 ---@param ready_cb fun(agent: table?, err: table?) called when the session is ready
 ---@param exit_cb? fun(code: integer, signal: integer) called after the process ends
-function M.init(cmd, model, ready_cb, exit_cb)
+---@param on_status fun(status: string) called on every status change
+function M.init(cmd, model, ready_cb, exit_cb, on_status)
 	local client
 	local session_id
 	local current -- handlers of the running turn
-	local status = "initializing" -- initializing, ready, busy, dead
+	local status -- initializing, idle, running, done, dead
+
+	local function set_status(new)
+		if new ~= status then
+			status = new
+			on_status(new)
+		end
+	end
+	set_status("initializing")
 
 	local function emit(name, ...)
 		local handler = current and current[name]
@@ -65,12 +74,12 @@ function M.init(cmd, model, ready_cb, exit_cb)
 	local function finish_turn()
 		current = nil
 		if status ~= "dead" then
-			status = "ready"
+			set_status("done")
 		end
 	end
 
 	local function fail(err)
-		status = "dead"
+		set_status("dead")
 		current = nil
 		client.stop()
 		ready_cb(nil, err)
@@ -86,13 +95,13 @@ function M.init(cmd, model, ready_cb, exit_cb)
 	---@param mode string capabilities
 	---@param handlers ai.PromptHandlers
 	local function prompt(text, mode, handlers)
-		if status == "busy" then
+		if status == "running" then
 			return handlers.done(nil, { message = "prompt already running" })
 		end
-		if status ~= "ready" then
+		if status ~= "idle" and status ~= "done" then
 			return handlers.done(nil, { message = "agent is " .. status })
 		end
-		status = "busy"
+		set_status("running")
 		current = handlers
 		set_config("mode", mode, function(mode_err)
 			if mode_err then
@@ -116,7 +125,7 @@ function M.init(cmd, model, ready_cb, exit_cb)
 
 	-- stop process
 	local function stop()
-		status = "dead"
+		set_status("dead")
 		current = nil
 		client.stop()
 	end
@@ -130,7 +139,7 @@ function M.init(cmd, model, ready_cb, exit_cb)
 	---@field prompt fun(text: string, mode: string, handlers: ai.PromptHandlers)
 	---@field cancel fun() stop the current stream
 	---@field stop fun() shut the agent process down
-	---@field status fun(): "initializing"|"ready"|"busy"|"dead"
+	---@field status fun(): "initializing"|"idle"|"running"|"done"|"dead"
 
 	---@type ai.Agent
 	local agent = {
@@ -141,7 +150,7 @@ function M.init(cmd, model, ready_cb, exit_cb)
 	}
 
 	client = rpc.init(cmd, on_msg, function(code, signal)
-		status = "dead"
+		set_status("dead")
 		current = nil
 		if exit_cb then
 			exit_cb(code, signal)
@@ -169,7 +178,7 @@ function M.init(cmd, model, ready_cb, exit_cb)
 						if model_err then
 							return fail(model_err)
 						end
-						status = "ready"
+						set_status("idle")
 						ready_cb(agent)
 					end)
 				end
