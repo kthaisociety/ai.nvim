@@ -1,5 +1,6 @@
 local acp = require("ai.acp")
 local config = require("ai.config")
+local status = require("ai.status")
 
 local M = {}
 
@@ -47,6 +48,15 @@ function M.create_agent(on_ready)
 				agents[id] = nil
 			end
 			print("agent died", code, signal)
+		end,
+
+		-- on status
+		function(new)
+			if new == "dead" then
+				status.remove(id)
+			else
+				status.set(id, new)
+			end
 		end
 	)
 	agents[id] = agent
@@ -73,7 +83,7 @@ end
 function M.run(selection, text, mode, handlers)
 	local agent = nil
 	for _, a in pairs(agents) do
-		if a.status() == "ready" then
+		if a.status() == "idle" or a.status() == "done" then
 			agent = a
 		end
 	end
@@ -95,7 +105,7 @@ function M.run(selection, text, mode, handlers)
 
 	local cancel_handle = function()
 		cancelled = true
-		if agent.status() == "ready" or agent.status() == "busy" then
+		if agent.status() == "idle" or agent.status() == "running" then
 			agent.cancel()
 		end
 		set_cancel_handle(selection, nil)
