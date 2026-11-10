@@ -41,7 +41,9 @@ local function sorted_ids()
 	for id in pairs(states) do
 		ids[#ids + 1] = id
 	end
-	table.sort(ids)
+	table.sort(ids, function(a, b)
+		return a > b
+	end)
 	return ids
 end
 

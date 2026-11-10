@@ -60,6 +60,13 @@ function M.setup(opts)
 			agents.select_agent(id)
 		end
 	end, { desc = "(A)gent (S)elect: select an agent by index" })
+
+	vim.keymap.set({ "n" }, "<leader>ad", function()
+		local id = tonumber(vim.fn.getcharstr())
+		if id then
+			agents.delete_agent(id)
+		end
+	end, { desc = "(A)gent (D)elete: delete an agent by index" })
 end
 
 return M

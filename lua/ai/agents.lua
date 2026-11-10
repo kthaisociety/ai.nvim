@@ -1,6 +1,6 @@
 local acp = require("ai.acp")
 local config = require("ai.config")
-local status = require("ai.status")
+local state = require("ai.state")
 
 local M = {}
 
@@ -53,12 +53,12 @@ function M.create_agent(on_ready)
 		-- on status
 		function(new)
 			if new == "dead" then
-				status.remove(id)
-				if status.get_selected() == id then
-					status.select(nil)
+				state.remove(id)
+				if state.get_selected() == id then
+					state.select(nil)
 				end
 			else
-				status.set(id, new)
+				state.set(id, new)
 			end
 		end
 	)
@@ -85,7 +85,7 @@ end
 ---@param handlers ai.PromptHandlers
 ---@return fun() cancel
 function M.run(selection, text, mode, handlers)
-	local agent = agents[status.get_selected()]
+	local agent = agents[state.get_selected()]
 	if not agent then
 		handlers.done(nil, { message = "no agent selected" })
 		return function() end
@@ -131,7 +131,7 @@ function M.select_agent(id)
 			vim.log.levels.ERROR
 		)
 	end
-	status.select(id)
+	state.select(id)
 end
 
 ---@param id integer
@@ -140,6 +140,14 @@ function M.delete_agent(id)
 	if agent then
 		agent.stop()
 		agents[id] = nil
+
+		-- select last agent if none is selected
+		if not state.get_selected() then
+			local last_id = table.maxn(agents)
+			if last_id > 0 then
+				state.select(last_id)
+			end
+		end
 	end
 end
 
