@@ -15,6 +15,10 @@ local floats = {}
 --tracks the state each agent was last seen in
 local states = {}
 
+--tracks when each agent appeared, for the "created" order
+local added = {}
+local added_count = 0
+
 ---@type integer?
 local selected
 
@@ -41,8 +45,12 @@ local function sorted_ids()
 	for id in pairs(states) do
 		ids[#ids + 1] = id
 	end
+	local by_id = config.get().indicator_order == "id"
 	table.sort(ids, function(a, b)
-		return a > b
+		if by_id then
+			return a > b
+		end
+		return added[a] > added[b]
 	end)
 	return ids
 end
@@ -148,10 +156,12 @@ end
 
 function M.render(id, state)
 	if state == nil then
-		states[id] = nil
-	else
-		states[id] = state
+		added[id] = nil
+	elseif not states[id] then
+		added_count = added_count + 1
+		added[id] = added_count
 	end
+	states[id] = state
 	redraw()
 	animate()
 end

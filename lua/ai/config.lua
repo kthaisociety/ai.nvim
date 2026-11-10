@@ -5,6 +5,7 @@ M.defaults = {
 	model = "opencode/big-pickle",
 	animations = true,
 	selection_header = true,
+	indicator_order = "created",
 }
 
 -- config in use
