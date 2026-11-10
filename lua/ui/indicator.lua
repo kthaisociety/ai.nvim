@@ -160,4 +160,6 @@ function M.select(id)
 	redraw()
 end
 
+M.redraw = redraw
+
 return M
