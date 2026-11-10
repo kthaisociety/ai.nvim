@@ -21,7 +21,7 @@ local function hide(id)
 	end
 	--delete buffer is existing
 	if vim.api.nvim_buf_is_valid(float.buf) then
-		vim.api.nvim_buf_delete(float.buf, {force = true})
+		vim.api.nvim_buf_delete(float.buf, { force = true })
 	end
 
 	floats[id] = nil
@@ -43,16 +43,9 @@ local function show(id, state, col)
 
 	local buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
-		label
+		label,
 	})
-	vim.api.nvim_buf_add_highlight(
-		buf,
-		-1,
-		style.group(state),
-		0,
-		0,
-		-1
-	)
+	vim.api.nvim_buf_add_highlight(buf, -1, style.group(state), 0, 0, -1)
 
 	local win = vim.api.nvim_get_current_win()
 	local height = vim.api.nvim_win_get_height(win)

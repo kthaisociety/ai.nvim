@@ -1,7 +1,12 @@
 local M = {}
 
-M.icons = { idle = "●", active = "●", done = "●" }
-M.groups = { idle = "AI_idle", active = "AI_active", done = "AI_done" }
+M.icons = { initializing = "●", idle = "●", busy = "●", done = "●" }
+M.groups = {
+	initializing = "AI_initializing",
+	idle = "AI_idle",
+	busy = "AI_busy",
+	done = "AI_done",
+}
 
 function M.icon(state)
 	return M.icons[state] or "?"

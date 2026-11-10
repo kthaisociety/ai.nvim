@@ -5,10 +5,9 @@ local states = {}
 local subscribers = {}
 
 --- Set the state for an ID and notify all subscribers
----@param id string The id of the agent
+---@param id integer The id of the agent
 ---@param state string the new state of the agent
 ---@return nil
-
 function M.set(id, state)
 	local old_state = states[id]
 	states[id] = state
@@ -18,7 +17,7 @@ function M.set(id, state)
 end
 
 --- Remove an ID's state and notify subscribers
----@param id string The id of the item to remove
+---@param id integer The id of the item to remove
 ---@return nil
 function M.remove(id)
 	if states[id] == nil then
@@ -32,7 +31,7 @@ function M.remove(id)
 end
 
 --- Get the current state for an ID
----@param id string The ID to look up
+---@param id integer The ID to look up
 ---@return string|nil state The current state, or nil if absent
 function M.get(id)
 	return states[id]

@@ -1,20 +1,22 @@
-local status = require("ai.status")
 local style = require("ui.style")
+local ui = require("ui")
 
-local M ={}
+local M = {}
 
-function M.set_all()
-	local all_states = status.get_all()
-
-	local ids = {}
-	for id in pair(all_states) do
-		ids[#id + 1] = id
-	end
+---Agent states as a statusline component, i.e. `%{%v:lua.require'ui.statusline'.render()%}`
+---@return string
+function M.render()
+	local ids = vim.tbl_keys(ui.shown)
 	table.sort(ids)
 
-	local formated_a = {}
+	local parts = {}
 	for _, id in ipairs(ids) do
-		local state = all[id]
-		parts[#parts + 1 ] = state
-
+		parts[#parts + 1] = "%#"
+			.. style.group(ui.shown[id])
+			.. "#"
+			.. style.circle(id)
+	end
+	return table.concat(parts, " ") .. "%*"
 end
+
+return M

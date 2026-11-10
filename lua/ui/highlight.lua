@@ -4,21 +4,25 @@ local M = {}
 
 --only apply if user has not personal configuration
 function M.setup()
-	vim.api.nvim_set_hl(0, "AI_idle", {
+	vim.api.nvim_set_hl(0, "AI_initializing", {
 		default = true,
-		link = "DiagnosticHint"
+		link = "Comment",
 	})
 
-	vim.api.nvim_set_hl(0, "AI_active", {
+	vim.api.nvim_set_hl(0, "AI_idle", {
 		default = true,
-		link = "DiagnosticOk"
+		link = "DiagnosticHint",
+	})
+
+	vim.api.nvim_set_hl(0, "AI_busy", {
+		default = true,
+		link = "DiagnosticOk",
 	})
 
 	vim.api.nvim_set_hl(0, "AI_done", {
 		default = true,
-		link = "DiagnosticWarn"
+		link = "DiagnosticWarn",
 	})
 end
 
 return M
-
