@@ -9,20 +9,37 @@ local namespace = vim.api.nvim_create_namespace("ai.nvim.visual_selection")
 ---@field text string Text captured by the selection
 ---@field writing? boolean True while write changes the buffer
 
----Uses the current cursor location, selection start and mode
----to determine the selection area
+---@return ai.Selection
+local function create_line_selection()
+	local buffer = vim.api.nvim_get_current_buf()
+	local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+	local line = vim.api.nvim_buf_get_lines(buffer, row, row + 1, false)[1]
+		or ""
+	local mark_id = vim.api.nvim_buf_set_extmark(buffer, namespace, row, 0, {
+		end_row = row,
+		end_col = #line,
+		right_gravity = false,
+		end_right_gravity = false,
+	})
+	return { buffer = buffer, mark_id = mark_id, mode = "V", text = line }
+end
+
+---Uses the current visual selection, or the current line
 ---@return ai.Selection?
 function M.create_selection()
+	local mode = vim.api.nvim_get_mode().mode
+	if mode ~= "v" and mode ~= "V" and mode ~= "\22" then
+		return create_line_selection()
+	end
+	if mode == "\22" then
+		vim.notify("ai.nvim: VISUAL BLOCK not supported", vim.log.levels.WARN)
+		return nil
+	end
+
 	local s, e = vim.fn.getpos("v"), vim.fn.getpos(".")
 	if s[2] > e[2] or (s[2] == e[2] and s[3] > e[3]) then
 		-- switch order if start is after end
 		s, e = e, s
-	end
-
-	local mode = vim.api.nvim_get_mode().mode
-	if mode == "\22" then
-		vim.notify("ai.nvim: VISUAL BLOCK not supported", vim.log.levels.WARN)
-		return nil
 	end
 
 	local buffer = vim.api.nvim_get_current_buf()
