@@ -4,7 +4,7 @@ local config = require("ai.config")
 local namespace = vim.api.nvim_create_namespace("ai.nvim.decoration")
 
 local SPINNER_FRAMES =
-	{ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+{ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
 
 local M = {}
 

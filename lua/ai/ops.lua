@@ -7,7 +7,7 @@ local decoration = require("ai.decoration")
 
 local M = {}
 
----@alias ai.Run fun(text: string, mode: string, handlers: ai.PromptHandlers): fun()
+---@alias ai.Run fun(selection: ai.Selection?, text: string, mode: string, handlers: ai.PromptHandlers): fun()
 
 ---Asks for a prompt on the command line, with the cursor location as context
 ---@param run ai.Run
@@ -21,7 +21,7 @@ function M.ask(run)
 		return
 	end
 
-	run(prompt.coalesce({ context.location(), text }), "build", {
+	run(nil, prompt.coalesce({ context.location(), text }), "build", {
 		done = function(_, err)
 			if err then
 				vim.notify(err.message, vim.log.levels.ERROR)
@@ -42,6 +42,7 @@ function M.replace(run)
 		decoration.highlight(selection, "Agent is rewriting the selection")
 	local prompt_cleared = false
 	local cancel = run(
+		selection,
 		prompt.coalesce({
 			selection.text,
 			prompt.clause(
@@ -88,7 +89,7 @@ function M.implement(run, cut)
 	if not selection then
 		return
 	end
-	run(selection.text, "build", {
+	run(selection, selection.text, "build", {
 		done = function(_, err)
 			if cut and not utils.is_empty(selection) then
 				utils.cut(selection)
