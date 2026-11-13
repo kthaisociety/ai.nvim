@@ -247,7 +247,7 @@ end
 
 ---Extmark ids of the selections covering the cursor, outermost first
 ---@return integer[] mark_ids
-function M.get_marks_at_cursor()
+function M.get_selection_marks_at_cursor()
 	local row, col = unpack(vim.api.nvim_win_get_cursor(0))
 	local marks = vim.api.nvim_buf_get_extmarks(
 		0,

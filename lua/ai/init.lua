@@ -23,7 +23,7 @@ function M.setup(opts)
 	vim.keymap.set({ "n", "x" }, "<C-c>", function()
 		local buffer = vim.api.nvim_get_current_buf()
 		local handles = agents.get_cancel_handles(buffer)
-		local first_mark_id = utils.get_marks_at_cursor()[1]
+		local first_mark_id = utils.get_selection_marks_at_cursor()[1]
 		local cancel = handles and first_mark_id and handles[first_mark_id]
 		if cancel then
 			cancel()
