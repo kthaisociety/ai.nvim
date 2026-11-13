@@ -10,8 +10,9 @@ local M = {}
 function M.init(cmd, model, ready_cb, exit_cb, on_status)
 	local client
 	local session_id
-	local current -- handlers of the running turn
-	local status -- initializing, idle, running, done, dead
+	local current      -- handlers of the running turn
+	local chunk_count = 0 -- keep track of the number or chunks
+	local status       -- initializing, idle, running, done, dead
 
 	local function set_status(new)
 		if new ~= status then
@@ -33,7 +34,8 @@ function M.init(cmd, model, ready_cb, exit_cb, on_status)
 		local content = update.content
 		local is_text = content and content.type == "text"
 		if kind == "agent_message_chunk" and is_text then
-			emit("on_text", content.text)
+			chunk_count = chunk_count + 1
+			emit("on_text", content.text, chunk_count == 1)
 		elseif kind == "agent_thought_chunk" and is_text then
 			emit("on_thought", content.text)
 		elseif kind == "tool_call" or kind == "tool_call_update" then
@@ -86,7 +88,7 @@ function M.init(cmd, model, ready_cb, exit_cb, on_status)
 	end
 
 	---@class ai.PromptHandlers
-	---@field on_text? fun(text: string) answer chunk
+	---@field on_text? fun(text: string, first: boolean) answer chunk and boolean indicating if it is the first chunk in the response
 	---@field on_thought? fun(text: string) reasoning chunk
 	---@field on_tool? fun(tool: table) tool call started or updated
 	---@field done fun(stop_reason: string?, err: table?) turn finished
@@ -103,6 +105,7 @@ function M.init(cmd, model, ready_cb, exit_cb, on_status)
 		end
 		set_status("running")
 		current = handlers
+		chunk_count = 0
 		set_config("mode", mode, function(mode_err)
 			if mode_err then
 				finish_turn()
