@@ -6,6 +6,7 @@ M.defaults = {
 	animations = true,
 	selection_header = true,
 	indicator_order = "created",
+	decoration_virt_lines = true,
 }
 
 -- config in use

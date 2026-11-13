@@ -38,9 +38,15 @@ function M.replace(run)
 		return
 	end
 
+	---@type ai.decoration.Opts
+	local dec_ops = {
+		virt_lines = { "Agent is rewriting the selection" },
+		force_virt_lines = false,
+		spin = true,
+	}
 	local release_highlight =
-		decoration.highlight(selection, "Agent is rewriting the selection")
-	local prompt_cleared = false
+		decoration.highlight(selection,
+			function() return dec_ops end)
 	local cancel = run(
 		selection,
 		prompt.coalesce({
@@ -52,15 +58,14 @@ function M.replace(run)
 		}),
 		"plan",
 		{
-			on_text = function(text)
+			on_text = function(text, first)
 				-- an empty chunk would leave the selection looking deleted
 				if text == "" or utils.is_empty(selection) then
 					return
 				end
-				if not prompt_cleared then
+				if first then
 					-- Clear prompt when response lands
 					utils.write(selection, "")
-					prompt_cleared = true
 				end
 				utils.write(selection, text, true)
 			end,
@@ -100,6 +105,48 @@ function M.implement(run, cut)
 			end
 		end,
 	})
+end
+
+function M.explain(run)
+	local selection = utils.create_selection()
+	if not selection then
+		return
+	end
+	---@type ai.decoration.Opts
+	local dec_ops = {
+		virt_lines = { "Agent is explaining selection" },
+		force_virt_lines = true,
+		spin = true,
+	}
+	local accumulated_text = ""
+	local release_highlight =
+		decoration.highlight(selection,
+			function() return dec_ops end)
+	run(
+		selection,
+		prompt.coalesce({
+			selection.text,
+			prompt.clause(
+				"system_message",
+				"Explain the above text concisely. Only respond with the explaination, don't come up with a plan."
+			),
+		}),
+		"plan",
+		{
+			on_text = function(text, first)
+				if text == "" or utils.is_empty(selection) then
+					return
+				end
+
+				accumulated_text = accumulated_text .. text
+				local width = utils.text_area_width(selection.buffer)
+				dec_ops.virt_lines = utils.wrap_to_lines(accumulated_text, width)
+			end,
+			done = function(_, err)
+				dec_ops.spin = false
+			end,
+		}
+	)
 end
 
 return M
