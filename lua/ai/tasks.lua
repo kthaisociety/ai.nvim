@@ -10,6 +10,7 @@ local M = {}
 ---@field decoration_opts ai.decoration.Opts? Options to update the selection's decoration next tick
 ---@field _agent ai.Agent Private field of agent working on this task. Call cancel_agent to cancel (not agent.cancel)
 ---@field response string Accumulated response text
+---@field type string? Caller defined type to determine if this task belongs to caller
 ---@field cancel_agent fun() Cancels this task's agent. Safe to call more than once.
 ---@field close fun() Tears down selection and decoration if present
 
@@ -29,9 +30,6 @@ local function register(task)
 	if task.selection then
 		local buffer = task.selection.buffer
 		if not tasks[buffer] then
-			task[buffer] = {}
-		end
-		if not tasks[buffer] then
 			tasks[buffer] = {}
 		end
 		tasks[buffer][task.selection.mark_id] = task
@@ -45,10 +43,29 @@ local function unregister(task)
 	if task.selection then
 		local buffer = task.selection.buffer
 		if not tasks[buffer] then
-			task[buffer] = {}
+			tasks[buffer] = {}
 		end
 		tasks[buffer][task.selection.mark_id] = nil
 	end
+end
+
+
+
+---Finds the overlapping selection marks in the selection and if any of them
+---has an associated task returns false, otherwise true. A nil selection returns true
+---@param selection ai.Selection?
+---@return boolean task_in_selection No task exists within the selection
+local function can_start_task(selection)
+	if not selection then
+		return true
+	end
+	for _, mark_id in ipairs(utils.get_overlapping_selection_marks(selection)) do
+		local task = M.get(selection.buffer, mark_id)
+		if task then
+			return false
+		end
+	end
+	return true
 end
 
 ---Runs a prompt on the selected agent
@@ -57,10 +74,17 @@ end
 ---@param handlers ai.task.PromptHandlers
 ---@param selection ai.Selection? the turn can be cancelled from here
 ---@param decoration_opts ai.decoration.Opts?
+---@param type string?
 ---@return ai.Task? task
-function M.start(text, mode, handlers, selection, decoration_opts)
+function M.start(text, mode, handlers, selection, decoration_opts, type)
 	---@type ai.Task
 	local task = {}
+
+	if not can_start_task(selection) then
+		handlers.done(task, nil,
+			{ message = "a task already exist within selection" })
+		return nil
+	end
 
 	local agent = agents.get_agent(state.get_selected())
 	if not agent then
@@ -68,15 +92,41 @@ function M.start(text, mode, handlers, selection, decoration_opts)
 		return nil
 	end
 
+	-- a finished or rejected turn must not cancel the agent's next turn
+	local finished = false
+
 	task._agent = agent
 	task.selection = selection
 	task.decoration_opts = decoration_opts
 	task.response = ""
+	task.type = type
+
+	local release_decoration
+	if selection and decoration_opts then
+		release_decoration = decoration.highlight(selection, function()
+			return task.decoration_opts
+		end)
+	end
+
+	task.cancel_agent = function()
+		if not finished then
+			agent.cancel()
+		end
+	end
+
+	task.close = function()
+		if selection then
+			utils.release(selection)
+		end
+		if release_decoration then
+			release_decoration()
+		end
+		task.cancel_agent()
+		unregister(task)
+	end
 
 	register(task)
 
-	-- a finished or rejected turn must not cancel the agent's next turn
-	local finished = false
 	agent.prompt(
 		text,
 		mode,
@@ -103,28 +153,6 @@ function M.start(text, mode, handlers, selection, decoration_opts)
 		})
 	)
 
-	local release_decoration
-	if selection and decoration_opts then
-		release_decoration = decoration.highlight(selection, function()
-			return task.decoration_opts
-		end)
-	end
-
-	task.cancel_agent = function()
-		if not finished then
-			agent.cancel()
-		end
-	end
-
-	task.close = function()
-		if selection then
-			utils.release(selection)
-		end
-		if release_decoration then
-			release_decoration()
-		end
-		unregister(task)
-	end
 	return task
 end
 
@@ -143,7 +171,7 @@ function M.get_from_cursor()
 	local marks = utils.get_selection_marks_at_cursor()
 	if not marks[1] then return nil end -- no selection mark under cursor
 	local buffer = vim.api.nvim_get_current_buf()
-	return M.get_task(buffer, marks[1])
+	return M.get(buffer, marks[1])
 end
 
 return M

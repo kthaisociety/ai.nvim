@@ -261,6 +261,31 @@ function M.get_selection_marks_at_cursor()
 	end, marks)
 end
 
+---Extmark ids of the selections overlapping the provided selection
+---@param selection ai.Selection
+---@return integer[] mark_ids
+function M.get_overlapping_selection_marks(selection)
+	local mark = M.get_mark(selection)
+	if not mark then return {} end
+	local sr, sc = mark[1], mark[2]
+	local er, ec = mark[3].end_row, mark[3].end_col
+
+	local marks = vim.api.nvim_buf_get_extmarks(
+		selection.buffer,
+		namespace,
+		{ sr, sc },
+		{ er, ec },
+		{ overlap = true }
+	)
+	local ids = {}
+	for _, m in ipairs(marks) do
+		if m[1] ~= selection.mark_id then
+			table.insert(ids, m[1])
+		end
+	end
+	return ids
+end
+
 ---@param buf integer buffer id
 ---@return integer win_width Current window's text area width or minimum text area width
 ---for windows associated with buf
@@ -295,13 +320,17 @@ end
 ---Newlines in the text stay line breaks, blank lines included
 ---@param text string
 ---@param width integer
+---@param max_lines integer?
 ---@return string[]
-function M.wrap_to_lines(text, width)
+function M.wrap_to_lines(text, width, max_lines)
 	width = math.max(width, 1)
 	local lines = {}
 	for _, paragraph in ipairs(vim.split(text, "\r?\n")) do
 		local curr_width = 0
 		for word in paragraph:gmatch("%S+") do
+			if max_lines and #lines >= max_lines then
+				return lines
+			end
 			local word_len = vim.api.nvim_strwidth(word)
 			-- + 1 for the space between the two words
 			if curr_width > 0 and curr_width + 1 + word_len <= width then
@@ -319,6 +348,18 @@ function M.wrap_to_lines(text, width)
 		end
 	end
 	return lines
+end
+
+---@param lines string[]
+function M.open_float(lines, focus_id)
+	vim.lsp.util.open_floating_preview(lines, "markdown", {
+		border = "rounded",
+		max_width = 80,
+		max_height = math.floor(vim.o.lines * 0.6),
+		focusable = true,
+		focus_id = focus_id, -- press the mapping again to jump inside
+		wrap = true,
+	})
 end
 
 return M

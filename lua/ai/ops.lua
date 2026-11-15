@@ -110,7 +110,6 @@ function M.explain()
 		force_virt_lines = true,
 		spin = true,
 	}
-	local accumulated_text = ""
 	local prompt_text = prompt.coalesce({
 		selection.text,
 		prompt.clause(
@@ -124,15 +123,21 @@ function M.explain()
 				return
 			end
 
-			accumulated_text = accumulated_text .. text
+			task.response = task.response .. text
 			local width = utils.text_area_width(selection.buffer)
-			task.decoration_opts.virt_lines =
-				utils.wrap_to_lines(accumulated_text, width)
+			local lines = utils.wrap_to_lines(task.response, width, 4)
+			if #lines == 4 then
+				-- TODO: use different highlight color for this info line
+				-- to distinguish it from agent response and selection highlight
+				table.insert(lines,
+					"See full response by pressing <leader>ax again")
+			end
+			task.decoration_opts.virt_lines = lines
 		end,
 		done = function(task, _, err)
 			dec_ops.spin = false
 		end,
-	}, selection, dec_ops)
+	}, selection, dec_ops, "explain")
 end
 
 return M
