@@ -71,15 +71,11 @@ function M.setup(opts)
 	end, { desc = "(A)gent (D)elete: delete an agent by index" })
 
 	vim.keymap.set({ "n", "x" }, "<leader>ax", function()
-		local buffer = vim.api.nvim_get_current_buf()
-		local mark_ids = utils.get_selection_marks_at_cursor()
-		local opened_float = false
-		if mark_ids[1] then
-			local task = tasks.get(buffer, mark_ids[1])
-			-- check if task is of type agent explain
-			-- open float
-		end
-		if not opened_float then
+		local task = tasks.get_from_cursor()
+		if task and task.type == "explain" then
+			local lines = vim.split(task.response, "\n")
+			utils.open_float(lines, task.type)
+		else
 			ops.explain()
 		end
 	end, {
