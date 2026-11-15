@@ -1,17 +1,14 @@
 local utils = require("ai.utils")
 local prompt = require("ai.prompt")
 local context = require("ai.context")
-local decoration = require("ai.decoration")
+local tasks = require("ai.tasks")
 
 -- Operations an agent can execute
 
 local M = {}
 
----@alias ai.Run fun(selection: ai.Selection?, text: string, mode: string, handlers: ai.PromptHandlers): fun()
-
 ---Asks for a prompt on the command line, with the cursor location as context
----@param run ai.Run
-function M.ask(run)
+function M.ask()
 	-- leave visual mode so the prompt does not inherit the range
 	vim.cmd("normal! \27")
 	local text = vim.fn.input(": ")
@@ -21,18 +18,18 @@ function M.ask(run)
 		return
 	end
 
-	run(nil, prompt.coalesce({ context.location(), text }), "build", {
-		done = function(_, err)
+	tasks.start(prompt.coalesce({ context.location(), text }), "build", {
+		done = function(task, _, err)
 			if err then
 				vim.notify(err.message, vim.log.levels.ERROR)
 			end
+			task.close()
 		end,
-	})
+	}, nil, nil)
 end
 
 ---Streams agent's answer into selection, replacing it
----@param run ai.Run
-function M.replace(run)
+function M.replace()
 	local selection = utils.create_selection()
 	if not selection then
 		return
@@ -44,70 +41,65 @@ function M.replace(run)
 		force_virt_lines = false,
 		spin = true,
 	}
-	local release_highlight =
-		decoration.highlight(selection,
-			function() return dec_ops end)
-	local cancel = run(
-		selection,
-		prompt.coalesce({
-			selection.text,
-			prompt.clause(
-				"system_message",
-				"Replace the above text. Respond with exactly what replaces."
-			),
-		}),
-		"plan",
-		{
-			on_text = function(text, first)
-				-- an empty chunk would leave the selection looking deleted
-				if text == "" or utils.is_empty(selection) then
-					return
-				end
-				if first then
-					-- Clear prompt when response lands
-					utils.write(selection, "")
-				end
-				utils.write(selection, text, true)
-			end,
-			done = function(_, err)
-				release_highlight()
-				-- after a delete the error is the cancel, nothing to restore
-				if err and not utils.is_empty(selection) then
-					utils.write(selection, selection.text)
-					vim.notify(err.message, vim.log.levels.ERROR)
-				end
-				utils.release(selection)
-			end,
-		}
-	)
+
+	local prompt_text = prompt.coalesce({
+		selection.text,
+		prompt.clause(
+			"system_message",
+			"Replace the above text. Respond with exactly what replaces."
+		),
+	})
+	local t = tasks.start(prompt_text, "plan", {
+		on_text = function(task, text, first)
+			-- an empty chunk would leave the selection looking deleted
+			if text == "" or utils.is_empty(selection) then
+				return
+			end
+			if first then
+				-- Clear prompt when response lands
+				utils.write(selection, "")
+			end
+			utils.write(selection, text, true)
+		end,
+		done = function(task, _, err)
+			-- after a delete the error is the cancel, nothing to restore
+			if err and not utils.is_empty(selection) then
+				utils.write(selection, selection.text)
+				vim.notify(err.message, vim.log.levels.ERROR)
+			end
+			task.close()
+		end,
+	}, selection, dec_ops)
+
+	if not t then return end
+
 	utils.watch(selection, function()
-		release_highlight()
-		cancel()
+		t.close()
 	end)
 end
 
 ---Uses the selection as a free prompt
----@param run ai.Run
 ---@param cut? boolean remove the prompt
-function M.implement(run, cut)
+function M.implement(cut)
 	local selection = utils.create_selection()
 	if not selection then
 		return
 	end
-	run(selection, selection.text, "build", {
-		done = function(_, err)
+	-- TODO: consider highlighting selection to keep track of agent running
+	tasks.start(selection.text, "build", {
+		done = function(task, _, err)
 			if cut and not utils.is_empty(selection) then
 				utils.cut(selection)
 			end
-			utils.release(selection)
 			if err then
 				vim.notify(err.message, vim.log.levels.ERROR)
 			end
+			task.close()
 		end,
-	})
+	}, selection, nil)
 end
 
-function M.explain(run)
+function M.explain()
 	local selection = utils.create_selection()
 	if not selection then
 		return
@@ -119,34 +111,28 @@ function M.explain(run)
 		spin = true,
 	}
 	local accumulated_text = ""
-	local release_highlight =
-		decoration.highlight(selection,
-			function() return dec_ops end)
-	run(
-		selection,
-		prompt.coalesce({
-			selection.text,
-			prompt.clause(
-				"system_message",
-				"Explain the above text concisely. Only respond with the explaination, don't come up with a plan."
-			),
-		}),
-		"plan",
-		{
-			on_text = function(text, first)
-				if text == "" or utils.is_empty(selection) then
-					return
-				end
+	local prompt_text = prompt.coalesce({
+		selection.text,
+		prompt.clause(
+			"system_message",
+			"Explain the above text concisely. Only respond with the explaination, don't come up with a plan."
+		),
+	})
+	tasks.start(prompt_text, "plan", {
+		on_text = function(task, text, first)
+			if text == "" or utils.is_empty(selection) then
+				return
+			end
 
-				accumulated_text = accumulated_text .. text
-				local width = utils.text_area_width(selection.buffer)
-				dec_ops.virt_lines = utils.wrap_to_lines(accumulated_text, width)
-			end,
-			done = function(_, err)
-				dec_ops.spin = false
-			end,
-		}
-	)
+			accumulated_text = accumulated_text .. text
+			local width = utils.text_area_width(selection.buffer)
+			task.decoration_opts.virt_lines =
+				utils.wrap_to_lines(accumulated_text, width)
+		end,
+		done = function(task, _, err)
+			dec_ops.spin = false
+		end,
+	}, selection, dec_ops)
 end
 
 return M

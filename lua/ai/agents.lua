@@ -7,9 +7,6 @@ local M = {}
 ---@type table<integer, ai.Agent>
 local agents = {}
 
----@type table<integer, table<integer, fun()>> buffer -> mark_id -> cancel handle
-local running_agents = {}
-
 ---@param on_ready? fun(agent: ai.Agent?, err: table?)
 ---@return ai.Agent
 function M.create_agent(on_ready)
@@ -67,59 +64,10 @@ function M.create_agent(on_ready)
 	return agent
 end
 
----@param selection ai.Selection?
----@param handle fun()?
-local function set_cancel_handle(selection, handle)
-	if selection then
-		if not running_agents[selection.buffer] then
-			running_agents[selection.buffer] = {}
-		end
-		running_agents[selection.buffer][selection.mark_id] = handle
-	end
-end
-
----Runs a prompt on the selected agent
----@param selection ai.Selection? the turn can be cancelled from here
----@param text string
----@param mode string
----@param handlers ai.PromptHandlers
----@return fun() cancel
-function M.run(selection, text, mode, handlers)
-	local agent = agents[state.get_selected()]
-	if not agent then
-		handlers.done(nil, { message = "no agent selected" })
-		return function() end
-	end
-
-	-- a finished or rejected turn must not cancel the agent's next turn
-	local finished = false
-	agent.prompt(
-		text,
-		mode,
-		vim.tbl_extend("force", handlers, {
-			done = function(...)
-				finished = true
-				set_cancel_handle(selection, nil)
-				handlers.done(...)
-			end,
-		})
-	)
-	if finished then
-		return function() end
-	end
-
-	local function cancel()
-		if not finished then
-			agent.cancel()
-		end
-	end
-	set_cancel_handle(selection, cancel)
-	return cancel
-end
-
----@param id integer
+---@param id integer?
 ---@return ai.Agent?
 function M.get_agent(id)
+	if not id then return nil end
 	return agents[id]
 end
 
@@ -149,12 +97,6 @@ function M.delete_agent(id)
 			end
 		end
 	end
-end
-
----Get cancel handles for running agents started in buffer
----@param buffer integer
-function M.get_cancel_handles(buffer)
-	return running_agents[buffer]
 end
 
 return M
