@@ -266,7 +266,9 @@ end
 ---@return integer[] mark_ids
 function M.get_overlapping_selection_marks(selection)
 	local mark = M.get_mark(selection)
-	if not mark then return {} end
+	if not mark then
+		return {}
+	end
 	local sr, sc = mark[1], mark[2]
 	local er, ec = mark[3].end_row, mark[3].end_col
 
@@ -352,8 +354,12 @@ end
 
 ---@param lines string[]
 function M.open_float(lines, focus_id)
+	-- floating window with no text errors due to 0 width
+	if vim.trim(table.concat(lines, "")) == "" then
+		return
+	end
+
 	vim.lsp.util.open_floating_preview(lines, "markdown", {
-		border = "rounded",
 		max_width = 80,
 		max_height = math.floor(vim.o.lines * 0.6),
 		focusable = true,
