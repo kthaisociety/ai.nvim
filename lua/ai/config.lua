@@ -4,9 +4,8 @@ M.defaults = {
 	cmd = { "opencode", "acp" },
 	model = "opencode/big-pickle",
 	animations = true,
-	selection_header = true,
 	indicator_order = "created",
-	decoration_virt_lines = true,
+	decoration_virt_lines = false,
 }
 
 -- config in use

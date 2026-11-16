@@ -2,6 +2,7 @@ local utils = require("ai.utils")
 local prompt = require("ai.prompt")
 local context = require("ai.context")
 local tasks = require("ai.tasks")
+local config = require("ai.config")
 
 -- Operations an agent can execute
 
@@ -111,7 +112,10 @@ function M.explain()
 	end
 	---@type ai.decoration.Opts
 	local dec_ops = {
-		virt_lines = { "Agent is explaining selection" },
+		-- show only if virtual lines are enabled
+		virt_lines = config.get().decoration_virt_lines and {
+			"Agent is explaining selection",
+		} or {},
 		force_virt_lines = true,
 		spin = true,
 	}
