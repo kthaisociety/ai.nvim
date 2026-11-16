@@ -24,9 +24,18 @@ local function create_line_selection()
 	return { buffer = buffer, mark_id = mark_id, mode = "V", text = line }
 end
 
+---True if in a floating window
+---@return boolean
+function M.in_float()
+	return vim.api.nvim_win_get_config(0).relative ~= ""
+end
+
 ---Uses the current visual selection, or the current line
 ---@return ai.Selection?
 function M.create_selection()
+	if M.in_float() then
+		return nil
+	end
 	local mode = vim.api.nvim_get_mode().mode
 	if mode ~= "v" and mode ~= "V" and mode ~= "\22" then
 		return create_line_selection()

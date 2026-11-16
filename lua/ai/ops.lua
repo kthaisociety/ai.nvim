@@ -9,6 +9,9 @@ local M = {}
 
 ---Asks for a prompt on the command line, with the cursor location as context
 function M.ask()
+	if utils.in_float() then
+		return
+	end
 	-- leave visual mode so the prompt does not inherit the range
 	vim.cmd("normal! \27")
 	local text = vim.fn.input(": ")
