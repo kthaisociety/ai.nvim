@@ -49,7 +49,11 @@ function M.highlight(selection, opts_supplier)
 			end_right_gravity = false,
 			-- Only show spinner inline if virt_lines are hidden
 			virt_text = {
-				{ not show_virt_lines and spinner .. " " or "", "DiffAdd" },
+				{
+					not show_virt_lines and spinner ~= "" and spinner .. " "
+						or "",
+					"DiffAdd",
+				},
 			},
 			virt_text_pos = "inline",
 		})
@@ -57,9 +61,14 @@ function M.highlight(selection, opts_supplier)
 			-- virt_lines above the first line are hidden, so go below instead
 			local above = pos[1] > 0
 			local row = above and pos[1] or pos[3].end_row
-			local lines = vim.tbl_map(function(line)
-				return { { spinner .. " " .. line, "DiffAdd" } }
-			end, opts.virt_lines)
+			-- the spinner leads the first line only, and nothing indents the rest
+			local lines = {}
+			for n, line in ipairs(opts.virt_lines) do
+				if n == 1 and spinner ~= "" then
+					line = spinner .. " " .. line
+				end
+				lines[n] = { { line, "DiffAdd" } }
+			end
 			-- TODO: Check if virt_lines is empty
 			header_id =
 				vim.api.nvim_buf_set_extmark(buffer, namespace, row, 0, {
