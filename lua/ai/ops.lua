@@ -119,7 +119,7 @@ function M.explain()
 			"Explain the above text concisely. Only respond with the explaination, don't come up with a plan."
 		),
 	})
-	tasks.start(prompt_text, "plan", {
+	local t = tasks.start(prompt_text, "plan", {
 		on_text = function(task, text, _)
 			if text == "" or utils.is_empty(selection) then
 				return
@@ -138,10 +138,23 @@ function M.explain()
 			end
 			task.decoration_opts.virt_lines = lines
 		end,
-		done = function(_, _, _)
+		done = function(task, _, err)
 			dec_ops.spin = false
+			-- remove explanation if task fails
+			if err then
+				task.close()
+			end
 		end,
 	}, selection, dec_ops, "explain")
+
+	if not t then
+		return
+	end
+
+	-- remove explanation when underlying text goes
+	utils.watch(selection, function()
+		t.close()
+	end)
 end
 
 return M
