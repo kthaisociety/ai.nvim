@@ -4,7 +4,7 @@ local config = require("ai.config")
 local namespace = vim.api.nvim_create_namespace("ai.nvim.decoration")
 
 local SPINNER_FRAMES =
-{ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+	{ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
 
 local M = {}
 
@@ -48,7 +48,9 @@ function M.highlight(selection, opts_supplier)
 			right_gravity = false,
 			end_right_gravity = false,
 			-- Only show spinner inline if virt_lines are hidden
-			virt_text = { { not show_virt_lines and spinner .. " " or "", "DiffAdd" } },
+			virt_text = {
+				{ not show_virt_lines and spinner .. " " or "", "DiffAdd" },
+			},
 			virt_text_pos = "inline",
 		})
 		if show_virt_lines or opts.force_virt_lines then

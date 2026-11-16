@@ -67,7 +67,9 @@ end
 ---@param id integer?
 ---@return ai.Agent?
 function M.get_agent(id)
-	if not id then return nil end
+	if not id then
+		return nil
+	end
 	return agents[id]
 end
 

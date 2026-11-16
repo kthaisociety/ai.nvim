@@ -39,8 +39,7 @@ function M.setup(opts)
 	vim.keymap.set({ "n", "x" }, "<leader>ar", function()
 		ops.replace()
 	end, {
-		desc =
-		"(A)gent (R)eplace: Replace selection or current line with AI response",
+		desc = "(A)gent (R)eplace: Replace selection or current line with AI response",
 	})
 
 	vim.keymap.set({ "n", "x" }, "<leader>ai", function()
@@ -52,8 +51,7 @@ function M.setup(opts)
 	vim.keymap.set({ "n", "x" }, "<leader>air", function()
 		ops.implement(true)
 	end, {
-		desc =
-		"(A)gent (I)mplement (R)eplace: Use selection or current line as AI prompt and cut the prompt",
+		desc = "(A)gent (I)mplement (R)eplace: Use selection or current line as AI prompt and cut the prompt",
 	})
 
 	vim.keymap.set({ "n" }, "<leader>as", function()
@@ -79,8 +77,7 @@ function M.setup(opts)
 			ops.explain()
 		end
 	end, {
-		desc =
-		"(A)gent E(x)plain: Agent explains selection or current line in virtual text. When triggered on an existing explanation it opens the explanation in a floating window.",
+		desc = "(A)gent E(x)plain: Agent explains selection or current line in virtual text. When triggered on an existing explanation it opens the explanation in a floating window.",
 	})
 end
 

@@ -50,7 +50,7 @@ function M.replace()
 		),
 	})
 	local t = tasks.start(prompt_text, "plan", {
-		on_text = function(task, text, first)
+		on_text = function(_, text, first)
 			-- an empty chunk would leave the selection looking deleted
 			if text == "" or utils.is_empty(selection) then
 				return
@@ -71,7 +71,9 @@ function M.replace()
 		end,
 	}, selection, dec_ops)
 
-	if not t then return end
+	if not t then
+		return
+	end
 
 	utils.watch(selection, function()
 		t.close()
@@ -118,7 +120,7 @@ function M.explain()
 		),
 	})
 	tasks.start(prompt_text, "plan", {
-		on_text = function(task, text, first)
+		on_text = function(task, text, _)
 			if text == "" or utils.is_empty(selection) then
 				return
 			end
@@ -129,12 +131,14 @@ function M.explain()
 			if #lines == 4 then
 				-- TODO: use different highlight color for this info line
 				-- to distinguish it from agent response and selection highlight
-				table.insert(lines,
-					"See full response by pressing <leader>ax again")
+				table.insert(
+					lines,
+					"See full response by pressing <leader>ax again"
+				)
 			end
 			task.decoration_opts.virt_lines = lines
 		end,
-		done = function(task, _, err)
+		done = function(_, _, _)
 			dec_ops.spin = false
 		end,
 	}, selection, dec_ops, "explain")

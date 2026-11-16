@@ -10,9 +10,9 @@ local M = {}
 function M.init(cmd, model, ready_cb, exit_cb, on_status)
 	local client
 	local session_id
-	local current      -- handlers of the running turn
+	local current -- handlers of the running turn
 	local chunk_count = 0 -- keep track of the number or chunks
-	local status       -- initializing, idle, running, done, dead
+	local status -- initializing, idle, running, done, dead
 
 	local function set_status(new)
 		if new ~= status then

@@ -49,8 +49,6 @@ local function unregister(task)
 	end
 end
 
-
-
 ---Finds the overlapping selection marks in the selection and if any of them
 ---has an associated task returns false, otherwise true. A nil selection returns true
 ---@param selection ai.Selection?
@@ -78,38 +76,20 @@ end
 ---@return ai.Task? task
 function M.start(text, mode, handlers, selection, decoration_opts, type)
 	---@type ai.Task
-	local task = {}
+	local task = {
+		selection = selection,
+		decoration_opts = decoration_opts,
+		response = "",
+		type = type,
+	}
 
-	if not can_start_task(selection) then
-		handlers.done(task, nil,
-			{ message = "a task already exist within selection" })
-		return nil
-	end
-
-	local agent = agents.get_agent(state.get_selected())
-	if not agent then
-		handlers.done(task, nil, { message = "no agent selected" })
-		return nil
-	end
-
+	local agent
 	-- a finished or rejected turn must not cancel the agent's next turn
 	local finished = false
-
-	task._agent = agent
-	task.selection = selection
-	task.decoration_opts = decoration_opts
-	task.response = ""
-	task.type = type
-
 	local release_decoration
-	if selection and decoration_opts then
-		release_decoration = decoration.highlight(selection, function()
-			return task.decoration_opts
-		end)
-	end
 
 	task.cancel_agent = function()
-		if not finished then
+		if agent and not finished then
 			agent.cancel()
 		end
 	end
@@ -123,6 +103,29 @@ function M.start(text, mode, handlers, selection, decoration_opts, type)
 		end
 		task.cancel_agent()
 		unregister(task)
+	end
+
+	local function reject(message)
+		finished = true
+		handlers.done(task, nil, { message = message })
+	end
+
+	if not can_start_task(selection) then
+		reject("a task already exist within selection")
+		return nil
+	end
+
+	agent = agents.get_agent(state.get_selected())
+	if not agent then
+		reject("no agent selected")
+		return nil
+	end
+	task._agent = agent
+
+	if selection and decoration_opts then
+		release_decoration = decoration.highlight(selection, function()
+			return task.decoration_opts
+		end)
 	end
 
 	register(task)
@@ -169,7 +172,9 @@ end
 
 function M.get_from_cursor()
 	local marks = utils.get_selection_marks_at_cursor()
-	if not marks[1] then return nil end -- no selection mark under cursor
+	if not marks[1] then
+		return nil
+	end -- no selection mark under cursor
 	local buffer = vim.api.nvim_get_current_buf()
 	return M.get(buffer, marks[1])
 end
