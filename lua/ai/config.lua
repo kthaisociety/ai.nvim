@@ -7,6 +7,7 @@ M.defaults = {
 	indicator_order = "created",
 	decoration_virt_lines = false,
 	hints = false,
+	keymaps = true,
 }
 
 -- config in use

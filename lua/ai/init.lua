@@ -5,9 +5,11 @@ local ui = require("ai.ui")
 local M = {}
 
 function M.setup(opts)
-	config.setup(opts)
+	local cfg = config.setup(opts)
 	ui.setup()
-	keymaps.setup()
+	if cfg.keymaps then
+		keymaps.setup()
+	end
 end
 
 return M

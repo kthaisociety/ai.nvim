@@ -1,0 +1,35 @@
+*ai.txt*  Agents that write where you look                          *ai.nvim*
+
+Requires Neovim >= 0.10 and an ACP agent. Verify with |:checkhealth| ai.
+
+==============================================================================
+SETUP                                                             *ai-setup*
+>lua
+    require("ai").setup({
+      cmd = { "opencode", "acp" },   -- starts the ACP agent
+      model = "opencode/big-pickle",
+      animations = true,
+      indicator_order = "created",   -- or "id"
+      decoration_virt_lines = false, -- responses as virtual lines
+      hints = false,                 -- usage hints in explanations
+      keymaps = true,                -- see |ai-keymaps|
+    })
+<
+==============================================================================
+KEYMAPS                                                         *ai-keymaps*
+
+<leader>a       Ask an agent, cursor location as context.
+<leader>an      New agent.
+<leader>as{n}   Select agent {n}.
+<leader>ad{n}   Delete agent {n}.
+<leader>ar      Replace selection or line with response.
+<leader>ai      Implement selection or line as prompt.
+<leader>air     Implement and cut the prompt.
+<leader>ax      Explain in virtual text. Again opens a float.
+<C-c>           Cancel agent under cursor.
+
+With `keymaps = false`, map these yourself:
+`require("ai.ops")`: `ask`, `cancel`, `explain`, `implement`, `replace`.
+`require("ai.agent")`: `create_agent()`, `select_agent(n)`, `delete_agent(n)`.
+
+ vim:tw=78:ts=8:ft=help:norl:
