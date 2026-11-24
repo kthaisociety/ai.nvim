@@ -22,7 +22,7 @@ local added_count = 0
 ---@type integer?
 local selected
 
---remov an existing window
+--remove an existing window
 local function hide(id)
 	local float = floats[id]
 	if not float then
@@ -57,10 +57,11 @@ end
 
 local function label(id)
 	local text = style.label(id)
-	if states[id] == "running" then
+	if states[id] == "running" or states[id] == "initializing" then
 		return style.label(frames[frame])
 	end
 	return text
+
 end
 
 local function paint(buf, id)
@@ -82,18 +83,19 @@ end
 local function tick()
 	frame = frame % #frames + 1
 	for id, float in pairs(floats) do
-		if states[id] == "running" and vim.api.nvim_buf_is_valid(float.buf) then
+		if (states[id] == "running" or states[id] == "initializing") and vim.api.nvim_buf_is_valid(float.buf) then
 			paint(float.buf, id)
 		end
 	end
 end
 
 local function animate()
-	if not vim.tbl_contains(vim.tbl_values(states), "running") then
+	if not (vim.tbl_contains(vim.tbl_values(states), "running") or vim.tbl_contains(vim.tbl_values(states), "initializing")) then
 		timer:stop()
 	elseif config.get().animations and not timer:is_active() then
 		timer:start(100, 100, vim.schedule_wrap(tick))
 	end
+
 end
 
 local function show(id, col)
