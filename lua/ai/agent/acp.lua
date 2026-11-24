@@ -1,4 +1,4 @@
-local rpc = require("ai.rpc")
+local rpc = require("ai.agent.rpc")
 
 local M = {}
 

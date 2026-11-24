@@ -1,6 +1,6 @@
-local acp = require("ai.acp")
+local acp = require("ai.agent.acp")
 local config = require("ai.config")
-local state = require("ai.state")
+local state = require("ai.agent.state")
 
 local M = {}
 
@@ -25,14 +25,17 @@ function M.create_agent(on_ready)
 		-- on ready
 		function(_, err)
 			if err then
-				print("agent failed to initialize: " .. err.message)
+				vim.notify(
+					"agent failed to initialize: " .. err.message,
+					vim.log.levels.ERROR
+				)
 				M.delete_agent(id)
 				if on_ready then
 					on_ready(nil, err)
 				end
 				return
 			end
-			print("agent ready")
+			vim.notify("agent ready", vim.log.levels.INFO)
 			if on_ready then
 				on_ready(agent)
 			end
@@ -44,7 +47,10 @@ function M.create_agent(on_ready)
 			if agents[id] == agent then
 				agents[id] = nil
 			end
-			print("agent died", code, signal)
+			vim.notify(
+				("agent died (code %s, signal %s)"):format(code, signal),
+				vim.log.levels.WARN
+			)
 		end,
 
 		-- on status

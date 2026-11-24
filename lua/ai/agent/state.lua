@@ -34,13 +34,6 @@ function M.remove(id)
 	end
 end
 
---- Get the current state for an ID
----@param id integer The ID to look up
----@return string|nil state The current state, or nil if absent
-function M.get(id)
-	return states[id]
-end
-
 --- Get the table containing all states
 ---@return table<any, string> states A table mapping IDs to states
 function M.get_all()
