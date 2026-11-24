@@ -1,53 +1,25 @@
-local utils = require("ai.utils")
-local agents = require("ai.agents")
-local state = require("ai.state")
-local decoration = require("ai.decoration")
+local agents = require("ai.agent")
+local mark = require("ai.selection.mark")
+local registry = require("ai.task.registry")
+local selection_lib = require("ai.selection")
+local state = require("ai.agent.state")
 
 local M = {}
 
 ---@class ai.Task
 ---@field selection ai.Selection? Selection associated with task
----@field decoration_opts ai.decoration.Opts? Options to update the selection's decoration next tick
 ---@field _agent ai.Agent Private field of agent working on this task. Call cancel_agent to cancel (not agent.cancel)
 ---@field response string Accumulated response text
 ---@field type string? Caller defined type to determine if this task belongs to caller
 ---@field cancel_agent fun() Cancels this task's agent. Safe to call more than once.
----@field close fun() Tears down selection and decoration if present
+---@field defer fun(teardown: fun()) Runs teardown when the task closes
+---@field close fun() Tears down selection and deferred teardowns
 
 ---@class ai.task.PromptHandlers
 ---@field on_text? fun(task: ai.Task, text: string, first: boolean) answer chunk and boolean indicating if it is the first chunk in the response
 ---@field on_thought? fun(task: ai.Task, text: string) reasoning chunk
 ---@field on_tool? fun(task: ai.Task, tool: table) tool call started or updated
 ---@field done fun(task: ai.Task, stop_reason: string?, err: table?) turn finished
-
---- # Selection/mark->Task registry
---- Buffer id -> Extmark id -> ai.Task
----@type table<integer, table<integer, ai.Task>>
-local tasks = {}
-
----@param task ai.Task
-local function register(task)
-	if task.selection then
-		local buffer = task.selection.buffer
-		if not tasks[buffer] then
-			tasks[buffer] = {}
-		end
-		tasks[buffer][task.selection.mark_id] = task
-	end
-end
-
----Unregister task from selection registry
----Note: this does not teardown or cancel the task.
----@param task ai.Task
-local function unregister(task)
-	if task.selection then
-		local buffer = task.selection.buffer
-		if not tasks[buffer] then
-			tasks[buffer] = {}
-		end
-		tasks[buffer][task.selection.mark_id] = nil
-	end
-end
 
 ---Finds the overlapping selection marks in the selection and if any of them
 ---has an associated task returns false, otherwise true. A nil selection returns true
@@ -57,9 +29,8 @@ local function can_start_task(selection)
 	if not selection then
 		return true
 	end
-	for _, mark_id in ipairs(utils.get_overlapping_selection_marks(selection)) do
-		local task = M.get(selection.buffer, mark_id)
-		if task then
+	for _, mark_id in ipairs(mark.overlapping(selection)) do
+		if registry.get(selection.buffer, mark_id) then
 			return false
 		end
 	end
@@ -71,22 +42,24 @@ end
 ---@param mode string
 ---@param handlers ai.task.PromptHandlers
 ---@param selection ai.Selection? the turn can be cancelled from here
----@param decoration_opts ai.decoration.Opts?
 ---@param type string?
 ---@return ai.Task? task
-function M.start(text, mode, handlers, selection, decoration_opts, type)
-	---@type ai.Task
-	local task = {
-		selection = selection,
-		decoration_opts = decoration_opts,
-		response = "",
-		type = type,
-	}
+function M.start(text, mode, handlers, selection, type)
+	local task = --[[@as ai.Task]]
+		{
+			selection = selection,
+			response = "",
+			type = type,
+		}
 
 	local agent
 	-- a finished or rejected turn must not cancel the agent's next turn
 	local finished = false
-	local release_decoration
+	local teardowns = {}
+
+	task.defer = function(teardown)
+		teardowns[#teardowns + 1] = teardown
+	end
 
 	task.cancel_agent = function()
 		if agent and not finished then
@@ -96,13 +69,13 @@ function M.start(text, mode, handlers, selection, decoration_opts, type)
 
 	task.close = function()
 		if selection then
-			utils.release(selection)
+			selection_lib.release(selection)
 		end
-		if release_decoration then
-			release_decoration()
+		for _, teardown in ipairs(teardowns) do
+			teardown()
 		end
 		task.cancel_agent()
-		unregister(task)
+		registry.remove(task)
 	end
 
 	local function reject(message)
@@ -122,13 +95,7 @@ function M.start(text, mode, handlers, selection, decoration_opts, type)
 	end
 	task._agent = agent
 
-	if selection and decoration_opts then
-		release_decoration = decoration.highlight(selection, function()
-			return task.decoration_opts
-		end)
-	end
-
-	register(task)
+	registry.add(task)
 
 	agent.prompt(
 		text,
@@ -159,24 +126,13 @@ function M.start(text, mode, handlers, selection, decoration_opts, type)
 	return task
 end
 
----Get task associated with selection (by the selection's mark_id)
----@param buffer integer
----@param mark_id integer Associated selection's mark_id
----@return ai.Task? task The task that holds the selection containing mark_id
-function M.get(buffer, mark_id)
-	if not tasks[buffer] then
-		tasks[buffer] = {}
-	end
-	return tasks[buffer][mark_id]
-end
-
+---@return ai.Task? task The task of the outermost selection under the cursor
 function M.get_from_cursor()
-	local marks = utils.get_selection_marks_at_cursor()
-	if not marks[1] then
+	local mark_id = mark.at_cursor()[1]
+	if not mark_id then
 		return nil
-	end -- no selection mark under cursor
-	local buffer = vim.api.nvim_get_current_buf()
-	return M.get(buffer, marks[1])
+	end
+	return registry.get(vim.api.nvim_get_current_buf(), mark_id)
 end
 
 return M

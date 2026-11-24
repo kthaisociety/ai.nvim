@@ -1,14 +1,10 @@
-local utils = require("ai.utils")
 local config = require("ai.config")
+local mark = require("ai.selection.mark")
+local spinner_frames = require("ai.ui.spinner")
 
 local namespace = vim.api.nvim_create_namespace("ai.nvim.decoration")
 
-local SPINNER_FRAMES =
-	{ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
-
 local M = {}
-
-M.SPINNER_FRAMES = SPINNER_FRAMES
 
 ---@class ai.decoration.Opts
 ---@field spin boolean
@@ -31,14 +27,14 @@ function M.highlight(selection, opts_supplier)
 	-- set_extmark with an id replaces all options, so pass all of them
 	local function draw()
 		local opts = opts_supplier()
-		local pos = utils.get_mark(selection)
+		local pos = mark.get(selection)
 		if not pos then
 			return
 		end
 		if i == 0 or config.get().animations then
-			i = i % #SPINNER_FRAMES + 1
+			i = i % #spinner_frames + 1
 		end
-		local spinner = opts.spin and SPINNER_FRAMES[i] or ""
+		local spinner = opts.spin and spinner_frames[i] or ""
 		local show_virt_lines = config.get().decoration_virt_lines
 		local has_virt_lines = #opts.virt_lines > 0
 			and (show_virt_lines or opts.force_virt_lines)
@@ -83,7 +79,6 @@ function M.highlight(selection, opts_supplier)
 				end
 				lines[n] = { { line, "DiffAdd" } }
 			end
-			-- TODO: Check if virt_lines is empty
 			header_id =
 				vim.api.nvim_buf_set_extmark(buffer, namespace, row, 0, {
 					id = header_id,

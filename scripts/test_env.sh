@@ -1,1 +1,1 @@
-nvim --cmd "set rtp^=$PWD" -c 'lua require("ai").setup()' test.c
+nvim --cmd "set rtp^=$PWD" -c 'lua require("ai").setup()' tests/fixtures/test.c
