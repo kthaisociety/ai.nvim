@@ -45,7 +45,7 @@ return function()
 				local width = text.text_area_width(sel.buffer)
 				local lines =
 					text.wrap_to_lines(t.response, width, PREVIEW_LINES)
-				if #lines == PREVIEW_LINES then
+				if #lines == PREVIEW_LINES and config.get().hints then
 					table.insert(
 						lines,
 						"See full response by pressing <leader>ax again"

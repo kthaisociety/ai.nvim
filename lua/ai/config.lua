@@ -6,6 +6,7 @@ M.defaults = {
 	animations = true,
 	indicator_order = "created",
 	decoration_virt_lines = false,
+	hints = false,
 }
 
 -- config in use
