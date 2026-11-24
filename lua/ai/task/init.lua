@@ -68,11 +68,12 @@ function M.start(text, mode, handlers, selection, type)
 	end
 
 	task.close = function()
-		if selection then
-			selection_lib.release(selection)
-		end
+		-- teardowns may still write to the selection
 		for _, teardown in ipairs(teardowns) do
 			teardown()
+		end
+		if selection then
+			selection_lib.release(selection)
 		end
 		task.cancel_agent()
 		registry.remove(task)

@@ -18,6 +18,8 @@ return function()
 		spin = true,
 	}
 
+	local finished = false
+
 	local running =
 		task.start(prompt.coalesce({ sel.text, templates.replace }), "plan", {
 			on_text = function(_, text, first)
@@ -32,6 +34,7 @@ return function()
 				selection.write(sel, text, true)
 			end,
 			done = function(t, _, err)
+				finished = true
 				-- after a delete the error is the cancel, nothing to restore
 				if err and not selection.is_empty(sel) then
 					selection.write(sel, sel.text)
@@ -49,6 +52,14 @@ return function()
 		return dec_ops
 	end))
 
+	-- a cancelled stream leaves no partial answer
+	running.defer(function()
+		if not finished and sel.seq and not selection.is_empty(sel) then
+			selection.write(sel, sel.text)
+		end
+	end)
+
+	-- also fires when undo reverts the stream
 	selection.watch(sel, function()
 		running.close()
 	end)

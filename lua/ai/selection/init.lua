@@ -12,6 +12,7 @@ M.watch = watch.watch
 ---@field mode "v" | "V" Visual mode captured at request time
 ---@field text string Text captured by the selection
 ---@field writing? boolean True while write changes the buffer
+---@field seq? integer Undo state after the last write
 
 ---@return ai.Selection
 local function create_line_selection()
@@ -60,22 +61,26 @@ function M.create()
 			#vim.api.nvim_buf_get_lines(buffer, last[2] - 1, last[2], false)[1]
 	end
 
-	return {
+	local selection = {
 		buffer = buffer,
 		mark_id = mark.set(buffer, s[2] - 1, start_col, e[2] - 1, end_col),
 		mode = mode,
 		text = table.concat(vim.fn.getregion(s, e, { type = mode }), "\n"),
 	}
+	-- lua mappings keep visual mode, where u lowercases instead of undoing
+	vim.cmd("normal! \27")
+	return selection
 end
 
----Replaces the selection with text, or appends to it
+---Replaces the selection with text, or appends to it.
+---Refuses once the user has undone the last write
 ---@param selection ai.Selection
 ---@param text string
 ---@param append? boolean
 ---@return boolean ok True if the replacement was applied
 function M.write(selection, text, append)
 	local current = mark.get(selection)
-	if not current then
+	if not current or watch.is_undone(selection) then
 		return false
 	end
 
@@ -86,8 +91,8 @@ function M.write(selection, text, append)
 	local lines = vim.split(text, "\r?\n")
 	selection.writing = true
 	vim.api.nvim_buf_call(selection.buffer, function()
-		if append then
-			-- stream reverts with one undo
+		-- consecutive writes revert with one undo
+		if vim.fn.changenr() == selection.seq then
 			pcall(vim.cmd.undojoin)
 		end
 		vim.api.nvim_buf_set_text(
@@ -98,6 +103,7 @@ function M.write(selection, text, append)
 			current[3].end_col,
 			lines
 		)
+		selection.seq = vim.fn.changenr()
 	end)
 	selection.writing = false
 	mark.set_end(

@@ -2,8 +2,17 @@ local mark = require("ai.selection.mark")
 
 local M = {}
 
+---@param selection ai.Selection
+---@return boolean undone True when undo reverted the selection's last write
+function M.is_undone(selection)
+	return selection.seq ~= nil
+		and vim.api.nvim_buf_is_valid(selection.buffer)
+		and vim.api.nvim_buf_call(selection.buffer, vim.fn.changenr)
+			< selection.seq
+end
+
 ---Keeps the selection on its own text while the user edits the buffer,
----and calls on_delete once when that text is deleted
+---and calls on_delete once when that text is deleted or its write undone
 ---@param selection ai.Selection
 ---@param on_delete fun()
 function M.watch(selection, on_delete)
@@ -21,7 +30,7 @@ function M.watch(selection, on_delete)
 				if fired then
 					return
 				end
-				if mark.is_empty(selection) then
+				if mark.is_empty(selection) or M.is_undone(selection) then
 					fired = true
 					return on_delete()
 				end
